@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>猜字 - 成语Wordle</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", sans-serif; background: #f7f6f3; min-height: 100vh; }
+  .top-bar { display: flex; align-items: center; padding: 16px 16px 8px; max-width: 480px; margin: 0 auto; }
+  .back { text-decoration: none; color: #3d6b5e; font-size: 15px; font-weight: 500; }
+  .title { font-size: 22px; font-weight: 700; color: #3d6b5e; flex: 1; text-align: center; }
+  .subtitle { text-align: center; color: #888; font-size: 13px; padding-bottom: 12px; }
+  #board { display: flex; flex-direction: column; gap: 6px; padding: 8px 16px; max-width: 340px; margin: 0 auto; }
+  .guess-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .guess-cell {
+    aspect-ratio: 1; border-radius: 10px; border: 2px solid #ddd;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(16px, 6vw, 28px); font-weight: 700;
+    background: white; color: #333; transition: all 0.3s;
+  }
+  .guess-cell.correct { background: #3d6b5e; color: white; border-color: #3d6b5e; }
+  .guess-cell.present { background: #c8a84b; color: white; border-color: #c8a84b; }
+  .guess-cell.absent { background: #888; color: white; border-color: #888; }
+  .guess-cell.active { border-color: #3d6b5e; }
+  #keyboard { padding: 10px 16px 20px; max-width: 480px; margin: 0 auto; }
+  .kb-row { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 6px; }
+  .kb-key {
+    background: white; border: none; border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    font-size: 15px; padding: 10px 8px; cursor: pointer;
+    color: #333; font-family: inherit; min-width: 34px;
+    transition: all 0.2s;
+  }
+  .kb-key.correct { background: #3d6b5e; color: white; }
+  .kb-key.present { background: #c8a84b; color: white; }
+  .kb-key.absent { background: #bbb; color: white; }
+  .kb-key.special { background: #3d6b5e; color: white; font-size: 13px; padding: 10px 12px; }
+  #msg { text-align: center; font-size: 14px; color: #3d6b5e; font-weight: 600; padding: 6px; min-height: 28px; }
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: center; justify-content: center; z-index: 10; }
+  .overlay.show { display: flex; }
+  .modal { background: white; border-radius: 20px; padding: 28px 24px; text-align: center; max-width: 320px; width: 90%; }
+  .modal h2 { font-size: 22px; margin-bottom: 8px; color: #3d6b5e; }
+  .modal .answer { font-size: 26px; font-weight: 700; color: #333; margin: 8px 0; }
+  .modal .result-grid { font-size: 22px; letter-spacing: 2px; margin: 10px 0; }
+  .modal p { color: #666; margin-bottom: 16px; font-size: 13px; }
+  .modal-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .modal-btns button { background: #3d6b5e; color: white; border: none; border-radius: 20px; padding: 9px 20px; font-size: 14px; font-family: inherit; cursor: pointer; }
+  .modal-btns button.secondary { background: white; color: #3d6b5e; border: 2px solid #3d6b5e; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <a class="back" href="index.html">← 返回</a>
+  <span class="title">📝 猜字</span>
+  <span style="width:48px"></span>
+</div>
+<p class="subtitle">猜一个四字成语，共6次机会</p>
+<div id="board"></div>
+<div id="msg"></div>
+<div id="keyboard"></div>
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title"></h2>
+    <div class="answer" id="modal-answer"></div>
+    <div class="result-grid" id="modal-result"></div>
+    <p id="modal-msg"></p>
+    <div class="modal-btns">
+      <button class="secondary" onclick="copyResult()">复制结果</button>
+      <button onclick="document.getElementById('overlay').classList.remove('show')">关闭</button>
+    </div>
+  </div>
+</div>
+<script>
+const WORDS = [
+  '一石二鸟','一鸣惊人','马到成功','画龙点睛','半途而废','废寝忘食','守株待兔','滥竽充数',
+  '掩耳盗铃','亡羊补牢','刻舟求剑','叶公好龙','杯弓蛇影','草木皆兵','四面楚歌','破釜沉舟',
+  '背水一战','卧薪尝胆','闻鸡起舞','精卫填海','愚公移山','大公无私','专心致志','一心一意',
+  '千方百计','万紫千红','风和日丽','春暖花开','秋高气爽','冬暖夏凉','勤学苦练','勇往直前',
+  '脚踏实地','实事求是','与时俱进','开天辟地','天长地久','山清水秀','心旷神怡','喜出望外',
+  '悲欢离合','生死攸关','千钧一发','九死一生','化险为夷','转危为安','功成名就','名垂青史',
+  '永垂不朽','流芳百世','声名狼藉','臭名远扬','自食其果','搬起石头','弄巧成拙','弄虚作假',
+  '名副其实','徒有虚名','表里如一','口是心非','言行一致','知行合一','知难而退','迎难而上',
+];
+
+// All unique chars from WORDS for keyboard
+const allChars = [...new Set(WORDS.join(''))].sort();
+
+let target, guesses, currentGuess, gameOver, resultEmoji;
+
+function getToday() {
+  const d = new Date();
+  return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+}
+
+function seededRandom(seed) {
+  let x = Math.sin(seed + 1) * 10000;
+  return x - Math.floor(x);
+}
+
+function init() {
+  const seed = getToday();
+  const idx = Math.floor(seededRandom(seed) * WORDS.length);
+  target = WORDS[idx];
+  guesses = [];
+  currentGuess = '';
+  gameOver = false;
+  resultEmoji = [];
+  renderBoard();
+  renderKeyboard();
+  document.getElementById('msg').textContent = '';
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for(let i=0;i<6;i++) {
+    const row = document.createElement('div');
+    row.className = 'guess-row';
+    for(let j=0;j<4;j++) {
+      const cell = document.createElement('div');
+      cell.className = 'guess-cell';
+      if(i < guesses.length) {
+        const {word, result} = guesses[i];
+        cell.textContent = word[j];
+        cell.classList.add(result[j]);
+      } else if(i === guesses.length) {
+        if(j < currentGuess.length) { cell.textContent = currentGuess[j]; cell.classList.add('active'); }
+      }
+      row.appendChild(cell);
+    }
+    board.appendChild(row);
+  }
+}
+
+function renderKeyboard() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = '';
+  const charState = {};
+  for(const {word, result} of guesses) {
+    word.split('').forEach((ch, i) => {
+      const s = result[i];
+      if(!charState[ch] || s==='correct' || (s==='present'&&charState[ch]!=='correct')) charState[ch]=s;
+    });
+  }
+  // Rows of common chars from wordlist
+  const rows = [];
+  const rowSize = Math.ceil(allChars.length / 5);
+  for(let i=0;i<allChars.length;i+=rowSize) rows.push(allChars.slice(i,i+rowSize));
+  for(const row of rows) {
+    const div = document.createElement('div');
+    div.className = 'kb-row';
+    for(const ch of row) {
+      const btn = document.createElement('button');
+      btn.className = 'kb-key';
+      btn.textContent = ch;
+      if(charState[ch]) btn.classList.add(charState[ch]);
+      btn.addEventListener('click', () => inputChar(ch));
+      div.appendChild(btn);
+    }
+    kb.appendChild(div);
+  }
+  const ctrlRow = document.createElement('div');
+  ctrlRow.className = 'kb-row';
+  const delBtn = document.createElement('button');
+  delBtn.className = 'kb-key special';
+  delBtn.textContent = '⌫ 删除';
+  delBtn.addEventListener('click', deleteLast);
+  const enterBtn = document.createElement('button');
+  enterBtn.className = 'kb-key special';
+  enterBtn.textContent = '✓ 确认';
+  enterBtn.addEventListener('click', submitGuess);
+  ctrlRow.appendChild(delBtn);
+  ctrlRow.appendChild(enterBtn);
+  kb.appendChild(ctrlRow);
+}
+
+function inputChar(ch) {
+  if(gameOver || currentGuess.length >= 4) return;
+  currentGuess += ch;
+  renderBoard();
+  document.getElementById('msg').textContent = '';
+}
+
+function deleteLast() {
+  if(!currentGuess) return;
+  currentGuess = currentGuess.slice(0,-1);
+  renderBoard();
+}
+
+function submitGuess() {
+  if(gameOver) return;
+  if(currentGuess.length !== 4) { document.getElementById('msg').textContent = '请输入4个汉字'; return; }
+  const result = evaluateGuess(currentGuess, target);
+  const emoji = result.map(r => r==='correct'?'🟩':r==='present'?'🟨':'⬜').join('');
+  resultEmoji.push(emoji);
+  guesses.push({word: currentGuess, result});
+  currentGuess = '';
+  renderBoard();
+  renderKeyboard();
+  if(result.every(r=>r==='correct')) {
+    gameOver = true;
+    document.getElementById('msg').textContent = '🎉 答对了！';
+    showResult(true);
+    return;
+  }
+  if(guesses.length >= 6) {
+    gameOver = true;
+    document.getElementById('msg').textContent = `答案是：${target}`;
+    showResult(false);
+  }
+}
+
+function evaluateGuess(guess, target) {
+  const result = Array(4).fill('absent');
+  const remaining = [...target];
+  // First pass: correct
+  for(let i=0;i<4;i++) {
+    if(guess[i]===target[i]) { result[i]='correct'; remaining[i]=null; }
+  }
+  // Second pass: present
+  for(let i=0;i<4;i++) {
+    if(result[i]==='correct') continue;
+    const idx = remaining.indexOf(guess[i]);
+    if(idx !== -1) { result[i]='present'; remaining[idx]=null; }
+  }
+  return result;
+}
+
+function showResult(won) {
+  setTimeout(() => {
+    document.getElementById('modal-title').textContent = won ? '🎉 恭喜！' : '😢 遗憾';
+    document.getElementById('modal-answer').textContent = target;
+    document.getElementById('modal-result').textContent = resultEmoji.join('\n');
+    document.getElementById('modal-msg').textContent = won ? `第 ${guesses.length} 次猜出` : '明天继续加油！';
+    document.getElementById('overlay').classList.add('show');
+  }, 400);
+}
+
+function copyResult() {
+  const text = `📝猜字 ${getToday()}\n${resultEmoji.join('\n')}\nhttps://games.example.com`;
+  navigator.clipboard.writeText(text).then(() => alert('已复制！'));
+}
+
+init();
+</script>
+</body>
+</html>
