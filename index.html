@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 小游戏合集</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #f7f6f3;
+    min-height: 100vh;
+    color: #2c2c2c;
+  }
+  header {
+    background: #3d6b5e;
+    color: white;
+    text-align: center;
+    padding: 40px 20px 32px;
+  }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+  header p { margin-top: 8px; font-size: 15px; opacity: 0.85; }
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    padding: 22px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-decoration: none;
+    color: inherit;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+  .card:active { transform: scale(0.97); }
+  .card .icon { font-size: 36px; margin-bottom: 10px; }
+  .card h2 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: #1a1a1a; }
+  .card p { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.5; }
+  .card .btn {
+    background: #3d6b5e;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 7px 20px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 13px;
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 小游戏合集</h1>
+  <p>旅途中的小时光</p>
+</header>
+<main>
+  <div class="grid">
+    <a class="card" href="2048.html">
+      <div class="icon">🔢</div>
+      <h2>2048</h2>
+      <p>滑动合并，越大越好</p>
+      <button class="btn">开始游戏</button>
+    </a>
+    <a class="card" href="minesweeper.html">
+      <div class="icon">💣</div>
+      <h2>扫雷</h2>
+      <p>经典排雷，小心踩坑</p>
+      <button class="btn">开始游戏</button>
+    </a>
+    <a class="card" href="sudoku.html">
+      <div class="icon">🔢</div>
+      <h2>数独</h2>
+      <p>数字逻辑，填满九宫格</p>
+      <button class="btn">开始游戏</button>
+    </a>
+    <a class="card" href="wordle.html">
+      <div class="icon">📝</div>
+      <h2>猜字</h2>
+      <p>Wordle中文版，猜一个4字成语</p>
+      <button class="btn">开始游戏</button>
+    </a>
+    <a class="card" href="sokoban.html" style="grid-column: span 2; max-width: 200px; margin: 0 auto; width: 100%;">
+      <div class="icon">📦</div>
+      <h2>推箱子</h2>
+      <p>经典关卡，动脑推推推</p>
+      <button class="btn">开始游戏</button>
+    </a>
+  </div>
+</main>
+<footer>用 ❤️ 制作，适合旅途</footer>
+</body>
+</html>
