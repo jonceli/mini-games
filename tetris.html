@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>俄罗斯方块</title>
+
+  <!-- PWA Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="方块">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0a1a">
+
+  <!-- PWA Manifest (inline via data URI) -->
+  <link rel="manifest" href="data:application/manifest+json,{
+    %22name%22:%22%E4%BF%84%E7%BD%97%E6%96%AF%E6%96%B9%E5%9D%97%22,
+    %22short_name%22:%22%E6%96%B9%E5%9D%97%22,
+    %22start_url%22:%22.%22,
+    %22display%22:%22standalone%22,
+    %22background_color%22:%22%230a0a1a%22,
+    %22theme_color%22:%22%230a0a1a%22,
+    %22orientation%22:%22portrait%22,
+    %22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230a0a1a'/%3E%3Crect x='80' y='80' width='100' height='100' rx='12' fill='%2300e5ff'/%3E%3Crect x='196' y='80' width='100' height='100' rx='12' fill='%2300e5ff'/%3E%3Crect x='196' y='196' width='100' height='100' rx='12' fill='%23aa00ff'/%3E%3Crect x='312' y='196' width='100' height='100' rx='12' fill='%23aa00ff'/%3E%3Crect x='80' y='312' width='100' height='100' rx='12' fill='%23ffd600'/%3E%3Crect x='196' y='312' width='100' height='100' rx='12' fill='%23ffd600'/%3E%3Crect x='80' y='196' width='100' height='100' rx='12' fill='%2300e676'/%3E%3Crect x='312' y='80' width='100' height='100' rx='12' fill='%23ff6d00'/%3E%3C/svg%3E%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22}]
+  }">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      background: #0a0a1a;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      color: #e0e0ff;
+      /* Safe area for notch phones */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Top bar */
+    #topbar {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(120,120,255,0.15);
+      flex-shrink: 0;
+    }
+    .stat { text-align: center; }
+    .stat-label { font-size: 9px; color: #6666aa; letter-spacing: 1px; text-transform: uppercase; }
+    .stat-value { font-size: 18px; font-weight: bold; color: #fff; line-height: 1.2; }
+
+    /* Main area */
+    #main {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 6px;
+      min-height: 0;
+    }
+
+    canvas#game-canvas {
+      display: block;
+      border: 1px solid rgba(120,120,255,0.35);
+      border-radius: 4px;
+      box-shadow: 0 0 30px rgba(80,80,255,0.2);
+      touch-action: none;
+    }
+
+    /* Side panel */
+    #side {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .side-box {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(120,120,255,0.2);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+    .side-label { font-size: 9px; color: #8888cc; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    #next-canvas { display: block; }
+
+    /* Touch buttons */
+    #controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      padding: 6px 0;
+      width: 100%;
+    }
+    .ctrl-row { display: flex; gap: 8px; justify-content: center; }
+    .ctrl-btn {
+      width: 56px; height: 56px;
+      background: rgba(100,100,255,0.12);
+      border: 1px solid rgba(100,100,255,0.35);
+      border-radius: 12px;
+      color: #aaaaff;
+      font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+      cursor: pointer;
+      active: scale(0.95);
+      transition: background 0.1s;
+    }
+    .ctrl-btn:active { background: rgba(100,100,255,0.3); }
+    .ctrl-btn.wide { width: 120px; font-size: 13px; letter-spacing: 1px; }
+
+    /* Overlay */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.82);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      padding: 24px;
+    }
+    #overlay h2 { font-size: 26px; color: #8888ff; letter-spacing: 4px; margin-bottom: 10px; }
+    #overlay .sub { font-size: 13px; color: #aaaacc; margin-bottom: 6px; text-align: center; }
+    #overlay .score-big { font-size: 36px; color: #fff; font-weight: bold; margin: 8px 0; }
+    .start-btn {
+      margin-top: 20px;
+      padding: 14px 40px;
+      background: rgba(100,100,255,0.2);
+      border: 1px solid rgba(100,100,255,0.6);
+      border-radius: 10px;
+      color: #ccccff;
+      font-size: 16px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      font-family: 'Courier New', monospace;
+    }
+    .start-btn:active { background: rgba(100,100,255,0.4); }
+
+    /* PWA install hint */
+    #pwa-hint {
+      position: fixed;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(40,40,80,0.95);
+      border: 1px solid rgba(100,100,255,0.4);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #aaaadd;
+      text-align: center;
+      white-space: nowrap;
+      z-index: 100;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="stat"><div class="stat-label">分数</div><div class="stat-value" id="score">0</div></div>
+    <div class="stat"><div class="stat-label">最高</div><div class="stat-value" id="hiscore">0</div></div>
+    <div class="stat"><div class="stat-label">等级</div><div class="stat-value" id="level">1</div></div>
+    <div class="stat"><div class="stat-label">消行</div><div class="stat-value" id="lines">0</div></div>
+  </div>
+
+  <div id="main">
+    <canvas id="game-canvas"></canvas>
+    <div id="side">
+      <div class="side-box">
+        <div class="side-label">下一个</div>
+        <canvas id="next-canvas" width="72" height="72"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="ctrl-row">
+      <div class="ctrl-btn" id="btn-rotate">↻</div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-btn" id="btn-left">◀</div>
+      <div class="ctrl-btn wide" id="btn-drop">⬇ 落底</div>
+      <div class="ctrl-btn" id="btn-right">▶</div>
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-btn wide" id="btn-down">▼ 加速</div>
+      <div class="ctrl-btn wide" id="btn-pause">⏸ 暂停</div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <h2>俄罗斯方块</h2>
+  <div class="sub">🚄 高铁途中，来一局吧</div>
+  <button class="start-btn" onclick="startGame()">开始游戏</button>
+</div>
+
+<div id="pwa-hint">📲 点击浏览器菜单 → "添加到主屏幕" 即可像 App 使用</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────
+const COLS = 10, ROWS = 20;
+const PIECES = [
+  { shape: [[1,1,1,1]], color: '#00e5ff' },
+  { shape: [[1,1],[1,1]], color: '#ffd600' },
+  { shape: [[0,1,0],[1,1,1]], color: '#aa00ff' },
+  { shape: [[0,1,1],[1,1,0]], color: '#00e676' },
+  { shape: [[1,1,0],[0,1,1]], color: '#ff1744' },
+  { shape: [[1,0,0],[1,1,1]], color: '#ff6d00' },
+  { shape: [[0,0,1],[1,1,1]], color: '#2979ff' },
+];
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const nextCanvas = document.getElementById('next-canvas');
+const nctx = nextCanvas.getContext('2d');
+
+// ── Responsive sizing ──────────────────────────────────────
+function calcCellSize() {
+  const main = document.getElementById('main');
+  const side = document.getElementById('side');
+  const availH = main.clientHeight - 12;
+  const availW = main.clientWidth - side.offsetWidth - 24;
+  const byH = Math.floor(availH / ROWS);
+  const byW = Math.floor(availW / COLS);
+  return Math.max(16, Math.min(byH, byW, 36));
+}
+
+let CELL;
+function resizeCanvas() {
+  CELL = calcCellSize();
+  canvas.width = COLS * CELL;
+  canvas.height = ROWS * CELL;
+  if (board) draw();
+}
+
+// ── Game state ─────────────────────────────────────────────
+let board, piece, nextPiece, score, hiscore = 0, level, lines;
+let gameOver, paused, dropInterval, lastTime, animId;
+let fastDrop = false, dropAcc = 0;
+
+function createBoard() {
+  return Array.from({length: ROWS}, () => Array(COLS).fill(0));
+}
+function randomPiece() {
+  const p = PIECES[Math.floor(Math.random() * PIECES.length)];
+  return { shape: p.shape.map(r => [...r]), color: p.color,
+           x: Math.floor(COLS/2) - Math.floor(p.shape[0].length/2), y: 0 };
+}
+function rotate(shape) {
+  const R = shape[0].length, C = shape.length;
+  const res = Array.from({length: R}, () => Array(C).fill(0));
+  for (let r = 0; r < C; r++)
+    for (let c = 0; c < R; c++)
+      res[c][C-1-r] = shape[r][c];
+  return res;
+}
+function isValid(s, x, y) {
+  for (let r = 0; r < s.length; r++)
+    for (let c = 0; c < s[r].length; c++)
+      if (s[r][c]) {
+        let nx = x+c, ny = y+r;
+        if (nx < 0 || nx >= COLS || ny >= ROWS) return false;
+        if (ny >= 0 && board[ny][nx]) return false;
+      }
+  return true;
+}
+function place() {
+  for (let r = 0; r < piece.shape.length; r++)
+    for (let c = 0; c < piece.shape[r].length; c++)
+      if (piece.shape[r][c]) {
+        if (piece.y + r < 0) { endGame(); return; }
+        board[piece.y+r][piece.x+c] = piece.color;
+      }
+  clearLines();
+  piece = nextPiece;
+  nextPiece = randomPiece();
+  if (!isValid(piece.shape, piece.x, piece.y)) { endGame(); return; }
+  drawNext();
+}
+function clearLines() {
+  let cleared = 0;
+  for (let r = ROWS-1; r >= 0; r--) {
+    if (board[r].every(c => c !== 0)) {
+      board.splice(r, 1);
+      board.unshift(Array(COLS).fill(0));
+      cleared++; r++;
+    }
+  }
+  if (cleared) {
+    score += ([0,100,300,500,800][cleared] || 800) * level;
+    lines += cleared;
+    level = Math.floor(lines/10) + 1;
+    dropInterval = Math.max(80, 800 - (level-1)*70);
+    updateUI();
+  }
+}
+function hardDrop() {
+  while (isValid(piece.shape, piece.x, piece.y+1)) piece.y++;
+  place();
+}
+function ghostY() {
+  let gy = piece.y;
+  while (isValid(piece.shape, piece.x, gy+1)) gy++;
+  return gy;
+}
+
+// ── Drawing ────────────────────────────────────────────────
+function drawCell(c, x, y, alpha=1) {
+  ctx.globalAlpha = alpha;
+  const gx = x*CELL+1, gy = y*CELL+1, gs = CELL-2;
+  ctx.fillStyle = c;
+  ctx.fillRect(gx, gy, gs, gs);
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillRect(gx, gy, gs, 3); ctx.fillRect(gx, gy, 3, gs);
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(gx+gs-3, gy, 3, gs); ctx.fillRect(gx, gy+gs-3, gs, 3);
+  ctx.globalAlpha = 1;
+}
+function draw() {
+  ctx.fillStyle = '#0d0d20';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1;
+  for (let r = 0; r < ROWS; r++) { ctx.beginPath(); ctx.moveTo(0,r*CELL); ctx.lineTo(canvas.width,r*CELL); ctx.stroke(); }
+  for (let c = 0; c < COLS; c++) { ctx.beginPath(); ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL,canvas.height); ctx.stroke(); }
+
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c]) drawCell(board[r][c], c, r);
+
+  if (piece) {
+    const gy = ghostY();
+    if (gy !== piece.y)
+      for (let r = 0; r < piece.shape.length; r++)
+        for (let c = 0; c < piece.shape[r].length; c++)
+          if (piece.shape[r][c]) drawCell(piece.color, piece.x+c, gy+r, 0.2);
+    for (let r = 0; r < piece.shape.length; r++)
+      for (let c = 0; c < piece.shape[r].length; c++)
+        if (piece.shape[r][c]) drawCell(piece.color, piece.x+c, piece.y+r);
+  }
+
+  if (paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#aaaaff'; ctx.font = `bold ${CELL*1.2}px Courier New`; ctx.textAlign = 'center';
+    ctx.fillText('已暂停', canvas.width/2, canvas.height/2);
+    ctx.font = `${CELL*0.6}px Courier New`; ctx.fillStyle = '#8888bb';
+    ctx.fillText('点暂停按钮继续', canvas.width/2, canvas.height/2 + CELL*1.5);
+  }
+}
+function drawNext() {
+  nctx.fillStyle = '#0d0d20'; nctx.fillRect(0,0,72,72);
+  if (!nextPiece) return;
+  const ns = nextPiece.shape, cs = 14;
+  const ox = Math.floor((72 - ns[0].length*cs)/2);
+  const oy = Math.floor((72 - ns.length*cs)/2);
+  for (let r = 0; r < ns.length; r++)
+    for (let c = 0; c < ns[r].length; c++)
+      if (ns[r][c]) {
+        nctx.fillStyle = nextPiece.color;
+        nctx.fillRect(ox+c*cs+1, oy+r*cs+1, cs-2, cs-2);
+        nctx.fillStyle = 'rgba(255,255,255,0.2)';
+        nctx.fillRect(ox+c*cs+1, oy+r*cs+1, cs-2, 2);
+      }
+}
+
+// ── UI ─────────────────────────────────────────────────────
+function updateUI() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('level').textContent = level;
+  document.getElementById('lines').textContent = lines;
+  if (score > hiscore) { hiscore = score; document.getElementById('hiscore').textContent = hiscore; }
+}
+
+// ── Game loop ──────────────────────────────────────────────
+function gameLoop(ts) {
+  if (!lastTime) lastTime = ts;
+  const dt = ts - lastTime; lastTime = ts;
+  if (!paused && !gameOver) {
+    dropAcc += dt;
+    const interval = fastDrop ? 50 : dropInterval;
+    if (dropAcc >= interval) {
+      dropAcc = 0;
+      if (isValid(piece.shape, piece.x, piece.y+1)) piece.y++;
+      else place();
+    }
+    draw();
+  }
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  board = createBoard();
+  score = 0; level = 1; lines = 0; gameOver = false; paused = false;
+  dropInterval = 800; dropAcc = 0; lastTime = 0; fastDrop = false;
+  resizeCanvas();
+  piece = randomPiece(); nextPiece = randomPiece();
+  updateUI(); drawNext();
+  document.getElementById('overlay').style.display = 'none';
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  gameOver = true;
+  const ov = document.getElementById('overlay');
+  ov.innerHTML = `
+    <h2>游戏结束</h2>
+    <div class="sub">消了 ${lines} 行 &nbsp;·&nbsp; 等级 ${level}</div>
+    <div class="score-big">${score.toLocaleString()}</div>
+    <div class="sub" style="color:#666688">最高 ${hiscore.toLocaleString()}</div>
+    <button class="start-btn" onclick="startGame()">再来一局</button>
+  `;
+  ov.style.display = 'flex';
+}
+
+// ── Keyboard ───────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (gameOver) return;
+  if (e.key === 'p' || e.key === 'P') { paused = !paused; draw(); return; }
+  if (paused) return;
+  if (e.key === 'ArrowLeft') { if (isValid(piece.shape, piece.x-1, piece.y)) piece.x--; }
+  else if (e.key === 'ArrowRight') { if (isValid(piece.shape, piece.x+1, piece.y)) piece.x++; }
+  else if (e.key === 'ArrowUp') {
+    const r = rotate(piece.shape);
+    if (isValid(r, piece.x, piece.y)) piece.shape = r;
+    else if (isValid(r, piece.x-1, piece.y)) { piece.shape = r; piece.x--; }
+    else if (isValid(r, piece.x+1, piece.y)) { piece.shape = r; piece.x++; }
+  } else if (e.key === 'ArrowDown') { fastDrop = true; }
+  else if (e.key === ' ') { hardDrop(); }
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { if (e.key === 'ArrowDown') fastDrop = false; });
+
+// ── Touch buttons ──────────────────────────────────────────
+function btnAction(id, onDown, onUp) {
+  const el = document.getElementById(id);
+  const down = () => onDown();
+  const up = () => onUp && onUp();
+  el.addEventListener('touchstart', e => { e.preventDefault(); down(); }, {passive:false});
+  el.addEventListener('touchend', e => { e.preventDefault(); up(); }, {passive:false});
+  el.addEventListener('mousedown', down);
+  el.addEventListener('mouseup', up);
+}
+
+btnAction('btn-rotate', () => {
+  if (!gameOver && !paused) {
+    const r = rotate(piece.shape);
+    if (isValid(r, piece.x, piece.y)) piece.shape = r;
+    else if (isValid(r, piece.x-1, piece.y)) { piece.shape = r; piece.x--; }
+    else if (isValid(r, piece.x+1, piece.y)) { piece.shape = r; piece.x++; }
+  }
+});
+btnAction('btn-left', () => { if (!gameOver && !paused && isValid(piece.shape, piece.x-1, piece.y)) piece.x--; });
+btnAction('btn-right', () => { if (!gameOver && !paused && isValid(piece.shape, piece.x+1, piece.y)) piece.x++; });
+btnAction('btn-drop', () => { if (!gameOver && !paused) hardDrop(); });
+btnAction('btn-down', () => { fastDrop = true; }, () => { fastDrop = false; });
+btnAction('btn-pause', () => { if (!gameOver) { paused = !paused; draw(); } });
+
+// ── Swipe on canvas ────────────────────────────────────────
+let tx, ty, tt;
+canvas.addEventListener('touchstart', e => {
+  tx = e.touches[0].clientX; ty = e.touches[0].clientY; tt = Date.now();
+  e.preventDefault();
+}, {passive:false});
+canvas.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  const dy = e.changedTouches[0].clientY - ty;
+  const dt = Date.now() - tt;
+  if (gameOver || paused) return;
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 200) {
+    const r = rotate(piece.shape);
+    if (isValid(r, piece.x, piece.y)) piece.shape = r;
+  } else if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 20 && isValid(piece.shape, piece.x+1, piece.y)) piece.x++;
+    else if (dx < -20 && isValid(piece.shape, piece.x-1, piece.y)) piece.x--;
+  } else if (dy > 40) hardDrop();
+  e.preventDefault();
+}, {passive:false});
+
+// ── Resize ─────────────────────────────────────────────────
+window.addEventListener('resize', () => { if (board) resizeCanvas(); });
+
+// ── PWA install hint ───────────────────────────────────────
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+if (!isInStandalone) {
+  setTimeout(() => {
+    const hint = document.getElementById('pwa-hint');
+    hint.style.display = 'block';
+    if (isIOS) hint.textContent = '📲 Safari → 分享按钮 → "添加到主屏幕" 即可像 App 使用';
+    setTimeout(() => { hint.style.display = 'none'; }, 5000);
+  }, 2000);
+}
+
+// ── Init ───────────────────────────────────────────────────
+CELL = 28;
+canvas.width = COLS * CELL;
+canvas.height = ROWS * CELL;
+ctx.fillStyle = '#0d0d20';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+</script>
+</body>
+</html>
