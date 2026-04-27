@@ -252,9 +252,28 @@ function resizeCanvas() {
 }
 
 // ── Game state ─────────────────────────────────────────────
+const HISCORE_KEY = 'tetris_hiscore';
 let board, piece, nextPiece, score, hiscore = 0, level, lines;
 let gameOver, paused, dropInterval, lastTime, animId;
 let fastDrop = false, dropAcc = 0;
+
+function loadHiscore() {
+  try {
+    const saved = parseInt(localStorage.getItem(HISCORE_KEY) || '0', 10);
+    hiscore = Number.isFinite(saved) && saved > 0 ? saved : 0;
+  } catch (e) {
+    hiscore = 0;
+  }
+  document.getElementById('hiscore').textContent = hiscore;
+}
+
+function saveHiscore() {
+  try {
+    localStorage.setItem(HISCORE_KEY, String(hiscore));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
 
 function createBoard() {
   return Array.from({length: ROWS}, () => Array(COLS).fill(0));
@@ -385,7 +404,11 @@ function updateUI() {
   document.getElementById('score').textContent = score;
   document.getElementById('level').textContent = level;
   document.getElementById('lines').textContent = lines;
-  if (score > hiscore) { hiscore = score; document.getElementById('hiscore').textContent = hiscore; }
+  if (score > hiscore) {
+    hiscore = score;
+    document.getElementById('hiscore').textContent = hiscore;
+    saveHiscore();
+  }
 }
 
 // ── Game loop ──────────────────────────────────────────────
@@ -515,6 +538,7 @@ canvas.width = COLS * CELL;
 canvas.height = ROWS * CELL;
 ctx.fillStyle = '#0d0d20';
 ctx.fillRect(0, 0, canvas.width, canvas.height);
+loadHiscore();
 </script>
 </body>
 </html>
