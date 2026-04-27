@@ -151,21 +151,44 @@ function createSeededRng(seed) {
   };
 }
 
+const COMMON_IDIOM_PATTERNS = [
+  '一心一意','一帆风顺','一举两得','一鸣惊人','一目了然','一针见血','一呼百应','一清二楚','一言为定','一模一样',
+  '十全十美','百发百中','千方百计','万无一失','万众一心','三心二意','三言两语','三头六臂','四面八方','五湖四海',
+  '五花八门','六神无主','七上八下','八仙过海','九死一生','十拿九稳','东山再起','南来北往','南辕北辙','大同小异',
+  '小题大做','出口成章','天长地久','天高地厚','心平气和','心直口快','心血来潮','手忙脚乱','水落石出','风平浪静',
+  '风和日丽','风雨同舟','日积月累','日新月异','月白风清','火上浇油','牛刀小试','画龙点睛','白手起家','目不转睛',
+  '众志成城','有口皆碑','有备无患','自言自语','先来后到','后生可畏','名副其实','如鱼得水','如虎添翼','安居乐业',
+  '齐心协力','百花齐放','别出心裁','快马加鞭','事半功倍','事与愿违','得心应手','脚踏实地','高瞻远瞩','顺理成章'
+];
+const COMMON_CHARS = [...new Set(COMMON_IDIOM_PATTERNS.join('') + '人口天地山水风雨日月东西南北上下大小多少春夏秋冬红黄蓝白黑前后左右中大小老少真假冷热远近高低快慢轻重吃喝玩乐衣食住行家国平安幸福成功学习工作生活朋友老师孩子时间办法结果事情心情希望努力')];
+const VERY_UNCOMMON_CHARS = ['龃','麤','黩','鼙','臞','齑','觳','罴','鸷','酆','髀','踯','蹰','爨','黾','鼋','饕','餮','鼍','鸩','龉','魑','魅','魍','魉','髑','髅','蹇','罡','罘','螭','黼','黻','孑','孓','忝','佶','侉','龛','缱','绻'];
+
 function getWordWeight(word) {
   let score = 0;
-  const bonusPatterns = ['一', '不', '人', '天', '心', '大', '千', '万', '有', '无'];
+  const bonusPatterns = ['一', '不', '人', '天', '心', '大', '千', '万', '有', '无', '风', '云', '山', '水', '日', '月'];
   bonusPatterns.forEach(ch => {
     if (word.includes(ch)) score += 2;
   });
-  const uncommonChars = ['龃','麤','黩','鼙','臞','齑','觳','罴','鸷','酆','髀','踯','蹰','爨','黾','鼋','饕','餮'];
-  uncommonChars.forEach(ch => {
-    if (word.includes(ch)) score -= 8;
+  COMMON_IDIOM_PATTERNS.forEach(pattern => {
+    if (word === pattern) score += 20;
+    else if (word.includes(pattern.slice(0, 2)) || word.includes(pattern.slice(2, 4))) score += 4;
   });
-  if (/^[一二三四五六七八九十百千万上下大小多少东西南北春夏秋冬风雨云山水人天地心手口目日月]/.test(word)) score += 3;
+  const chars = [...word];
+  chars.forEach(ch => {
+    if (COMMON_CHARS.includes(ch)) score += 2;
+    else score -= 1;
+    if (VERY_UNCOMMON_CHARS.includes(ch)) score -= 10;
+  });
+  if (/^[一二三四五六七八九十百千万上下大小多少东西南北春夏秋冬风雨云山水人天地心手口目日月]/.test(word)) score += 4;
+  if (/(山|水|风|云|天|地|日|月|人|心|手|花|春|秋|明|白|青|红|金|玉)/.test(word)) score += 3;
+  if (/(之乎者也|焉|矣|兮|者|其)/.test(word)) score -= 2;
+  if (/(魑|魅|魍|魉|鼋|爨|蹰|踯|觳|齑|臞|髑|髅)/.test(word)) score -= 12;
   return score;
 }
 
-const COMMON_WORDS = [...WORDS].sort((a, b) => getWordWeight(b) - getWordWeight(a)).slice(0, 2200);
+const WORD_SCORES = WORDS.map(word => ({ word, score: getWordWeight(word) })).sort((a, b) => b.score - a.score);
+const COMMON_WORDS = WORD_SCORES.slice(0, 1800).map(item => item.word);
+const SECONDARY_WORDS = WORD_SCORES.slice(1800, 3200).map(item => item.word);
 
 function getDifficultyLabel(size) {
   if (size === 16) return '简单 16';
@@ -190,16 +213,49 @@ function setDifficulty(size, restart = true) {
   }
 }
 
+function weightedPick(source, rng, used) {
+  const topWindow = Math.max(40, Math.floor(source.length * 0.18));
+  const midWindow = Math.max(20, Math.floor(source.length * 0.22));
+  const roll = rng();
+  let index;
+  if (roll < 0.72) {
+    index = Math.floor(rng() * topWindow);
+  } else if (roll < 0.94) {
+    index = topWindow + Math.floor(rng() * Math.min(midWindow, Math.max(1, source.length - topWindow)));
+  } else {
+    index = Math.floor(rng() * source.length);
+  }
+  index = Math.min(index, source.length - 1);
+  let candidate = source[index];
+  if (!used.has(candidate)) return candidate;
+  for (const word of source) {
+    if (!used.has(word)) return word;
+  }
+  return null;
+}
+
 function pickWordPool(rng, size = currentDifficulty || DEFAULT_POOL_SIZE) {
-  const source = COMMON_WORDS.length >= size ? COMMON_WORDS : WORDS;
   const pool = [];
   const used = new Set();
-  while (pool.length < size && used.size < source.length) {
-    const word = source[Math.floor(rng() * source.length)];
-    if (!used.has(word)) {
-      used.add(word);
-      pool.push(word);
-    }
+  const primaryTarget = Math.min(size, Math.max(10, Math.round(size * 0.85)));
+  while (pool.length < primaryTarget && used.size < COMMON_WORDS.length) {
+    const word = weightedPick(COMMON_WORDS, rng, used);
+    if (!word) break;
+    used.add(word);
+    pool.push(word);
+  }
+  while (pool.length < size && used.size < COMMON_WORDS.length + SECONDARY_WORDS.length) {
+    const source = SECONDARY_WORDS.length ? SECONDARY_WORDS : COMMON_WORDS;
+    const word = weightedPick(source, rng, used);
+    if (!word) break;
+    used.add(word);
+    pool.push(word);
+  }
+  while (pool.length < size && used.size < WORDS.length) {
+    const word = weightedPick(WORDS, rng, used);
+    if (!word) break;
+    used.add(word);
+    pool.push(word);
   }
   return pool;
 }
