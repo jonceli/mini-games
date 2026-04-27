@@ -86,7 +86,17 @@ const WORDS = [
 // All unique chars from WORDS for keyboard
 const allChars = [...new Set(WORDS.join(''))].sort();
 
+const WORDLE_BEST_KEY = 'wordle_best_attempts';
 let target, guesses, currentGuess, gameOver, resultEmoji;
+
+function saveWordleBest(attempts) {
+  try {
+    const prev = parseInt(localStorage.getItem(WORDLE_BEST_KEY) || '0', 10);
+    if (!prev || attempts < prev) localStorage.setItem(WORDLE_BEST_KEY, String(attempts));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
 
 function getToday() {
   const d = new Date();
@@ -200,6 +210,7 @@ function submitGuess() {
   renderKeyboard();
   if(result.every(r=>r==='correct')) {
     gameOver = true;
+    saveWordleBest(guesses.length);
     document.getElementById('msg').textContent = '🎉 答对了！';
     showResult(true);
     return;

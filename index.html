@@ -48,7 +48,19 @@
   .card:active { transform: scale(0.97); }
   .card .icon { font-size: 36px; margin-bottom: 10px; }
   .card h2 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: #1a1a1a; }
-  .card p { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.5; }
+  .card p { font-size: 12px; color: #888; margin-bottom: 10px; line-height: 1.5; }
+  .card .best {
+    font-size: 12px;
+    color: #3d6b5e;
+    background: #eef6f2;
+    border-radius: 999px;
+    padding: 5px 10px;
+    margin-bottom: 12px;
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
   .card .btn {
     background: #3d6b5e;
     color: white;
@@ -75,44 +87,103 @@
 </header>
 <main>
   <div class="grid">
-    <a class="card" href="2048.html">
+    <a class="card" href="2048.html" data-game="2048">
       <div class="icon">🔢</div>
       <h2>2048</h2>
       <p>滑动合并，越大越好</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
-    <a class="card" href="minesweeper.html">
+    <a class="card" href="minesweeper.html" data-game="minesweeper">
       <div class="icon">💣</div>
       <h2>扫雷</h2>
       <p>经典排雷，小心踩坑</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
-    <a class="card" href="sudoku.html">
+    <a class="card" href="sudoku.html" data-game="sudoku">
       <div class="icon">🔢</div>
       <h2>数独</h2>
       <p>数字逻辑，填满九宫格</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
-    <a class="card" href="wordle.html">
+    <a class="card" href="wordle.html" data-game="wordle">
       <div class="icon">📝</div>
       <h2>猜字</h2>
       <p>Wordle中文版，猜一个4字成语</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
-    <a class="card" href="sokoban.html">
+    <a class="card" href="sokoban.html" data-game="sokoban">
       <div class="icon">📦</div>
       <h2>推箱子</h2>
       <p>经典关卡，动脑推推推</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
-    <a class="card" href="tetris.html">
+    <a class="card" href="tetris.html" data-game="tetris">
       <div class="icon">🟦</div>
       <h2>俄罗斯方块</h2>
       <p>经典下落消行，手速越快越爽</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
   </div>
 </main>
 <footer>用 ❤️ 制作，适合旅途</footer>
+<script>
+  function readInt(key) {
+    try {
+      const value = parseInt(localStorage.getItem(key) || '0', 10);
+      return Number.isFinite(value) && value > 0 ? value : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function formatSeconds(seconds) {
+    if (!seconds) return '暂无';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}分${String(s).padStart(2, '0')}秒` : `${s}秒`;
+  }
+
+  function renderBestStats() {
+    document.querySelectorAll('[data-game]').forEach(card => {
+      const bestEl = card.querySelector('[data-best]');
+      const game = card.dataset.game;
+      let text = '最佳成绩：暂无';
+
+      if (game === '2048') {
+        const best = readInt('2048best');
+        text = `最佳成绩：${best ? best.toLocaleString() : '暂无'}`;
+      } else if (game === 'tetris') {
+        const best = readInt('tetris_hiscore');
+        text = `最佳成绩：${best ? best.toLocaleString() : '暂无'}`;
+      } else if (game === 'minesweeper') {
+        const bests = [0, 1, 2]
+          .map(i => readInt(`minesweeper_best_${i}`))
+          .filter(Boolean);
+        if (bests.length) text = `最佳成绩：最快 ${formatSeconds(Math.min(...bests))}`;
+      } else if (game === 'sudoku') {
+        const bests = [35, 45, 55]
+          .map(h => readInt(`sudoku_best_${h}`))
+          .filter(Boolean);
+        if (bests.length) text = `最佳成绩：最快 ${formatSeconds(Math.min(...bests))}`;
+      } else if (game === 'sokoban') {
+        const bests = Array.from({ length: 8 }, (_, i) => readInt(`sokoban_best_level_${i}`)).filter(Boolean);
+        if (bests.length) text = `最佳成绩：最佳 ${Math.min(...bests)} 步`;
+      } else if (game === 'wordle') {
+        const best = readInt('wordle_best_attempts');
+        text = `最佳成绩：${best ? `${best} 次猜中` : '暂无'}`;
+      }
+
+      bestEl.textContent = text;
+    });
+  }
+
+  renderBestStats();
+</script>
 </body>
 </html>

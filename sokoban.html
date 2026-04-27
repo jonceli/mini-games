@@ -158,6 +158,7 @@ const LEVELS = [
   ],
 ];
 
+const SOKOBAN_BEST_KEY_PREFIX = 'sokoban_best_level_';
 let levelIdx, grid, playerPos, steps, history;
 const CELL = 44;
 const COLORS = {
@@ -169,6 +170,16 @@ const COLORS = {
   5:'#3d8a4a', // box on goal
   6:'#4d8b7e', // player on goal
 };
+
+function saveSokobanBest(levelIndex, stepCount) {
+  try {
+    const key = `${SOKOBAN_BEST_KEY_PREFIX}${levelIndex}`;
+    const prev = parseInt(localStorage.getItem(key) || '0', 10);
+    if (!prev || stepCount < prev) localStorage.setItem(key, String(stepCount));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
 
 function loadLevel(idx) {
   levelIdx = idx;
@@ -269,6 +280,7 @@ function checkWin() {
   for(let r=0;r<grid.length;r++) for(let c=0;c<grid[r].length;c++) {
     if(grid[r][c]===3) return; // box not on goal
   }
+  saveSokobanBest(levelIdx, steps);
   document.getElementById('modal-msg').textContent = `第 ${levelIdx+1} 关，用了 ${steps} 步`;
   document.getElementById('overlay').classList.add('show');
 }

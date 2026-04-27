@@ -78,7 +78,18 @@ const DIFFS = [
   {rows:16, cols:16, mines:40},
   {rows:16, cols:30, mines:99}
 ];
+const MINESWEEPER_BEST_KEY_PREFIX = 'minesweeper_best_';
 let diff = 0, grid, revealed, flagged, mineSet, firstClick, gameOver, timerInterval, timeElapsed, flagCount;
+
+function saveBestTime(diffIndex, seconds) {
+  try {
+    const key = `${MINESWEEPER_BEST_KEY_PREFIX}${diffIndex}`;
+    const prev = parseInt(localStorage.getItem(key) || '0', 10);
+    if (!prev || seconds < prev) localStorage.setItem(key, String(seconds));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
 
 function setDiff(d) {
   document.querySelectorAll('.diff-btn').forEach((b,i) => b.classList.toggle('active', i===d));
@@ -172,6 +183,7 @@ function checkWin() {
   if(count === rows*cols - mines) {
     gameOver = true;
     clearInterval(timerInterval);
+    saveBestTime(diff, timeElapsed);
     setTimeout(() => {
       document.getElementById('modal-title').textContent = '🎉 胜利！';
       document.getElementById('modal-msg').textContent = `用时 ${timeElapsed} 秒`;
