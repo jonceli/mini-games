@@ -129,6 +129,13 @@
       <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
+    <a class="card" href="english-wordle.html" data-game="english-wordle">
+      <div class="icon">🔤</div>
+      <h2>猜词</h2>
+      <p>英文 Wordle，猜一个 5 字母单词</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
+      <button class="btn">开始游戏</button>
+    </a>
   </div>
 </main>
 <footer>用 ❤️ 制作，适合旅途</footer>
@@ -177,6 +184,17 @@
       } else if (game === 'wordle') {
         const best = readInt('wordle_best_attempts');
         text = `最佳成绩：${best ? `${best} 次猜中` : '暂无'}`;
+      } else if (game === 'english-wordle') {
+        const levels = ['daily', 'school', 'cet', 'mixed'];
+        const attempts = levels.map(level => readInt(`english_wordle_best_attempts_${level}`)).filter(Boolean);
+        const times = levels.map(level => readInt(`english_wordle_best_time_${level}`)).filter(Boolean);
+        if (attempts.length && times.length) {
+          text = `最佳成绩：${Math.min(...attempts)} 次 / ${formatSeconds(Math.min(...times))}`;
+        } else if (attempts.length) {
+          text = `最佳成绩：${Math.min(...attempts)} 次猜中`;
+        } else if (times.length) {
+          text = `最佳成绩：最快 ${formatSeconds(Math.min(...times))}`;
+        }
       }
 
       bestEl.textContent = text;
