@@ -111,6 +111,7 @@ const WORDLE_MODE_KEY = 'wordle_mode';
 const WORDLE_DIFFICULTY_KEY = 'wordle_difficulty';
 const WORDLE_BEST_KEY = 'wordle_best_attempts';
 const WORDLE_BEST_TIME_PREFIX = 'wordle_best_time_';
+const WORDLE_SAVE_KEY = 'wordle_save_state';
 const DEFAULT_POOL_SIZE = 24;
 
 let target, guesses, currentGuess, gameOver, resultEmoji, hintUsed, hintedIndex, hintedChar, currentMode, currentPool, keyboardChars, currentDifficulty, roundStartTime, currentElapsedSeconds;
@@ -305,7 +306,35 @@ function createRandomGame() {
   return { pool, target, difficulty: currentDifficulty || DEFAULT_POOL_SIZE };
 }
 
+function saveGameState() {
+  try {
+    const state = {
+      mode: currentMode,
+      pool: currentPool,
+      target: target,
+      difficulty: currentDifficulty || DEFAULT_POOL_SIZE,
+      guesses: guesses.map(g => ({ word: g.word, result: g.result })),
+      currentGuess: currentGuess,
+      gameOver: gameOver,
+      hintUsed: hintUsed,
+      hintedIndex: hintedIndex,
+      hintedChar: hintedChar,
+      resultEmoji: resultEmoji,
+      savedAt: Date.now(),
+      elapsedBeforeSave: currentElapsedSeconds || 0
+    };
+    localStorage.setItem(WORDLE_SAVE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+
+function clearSaveState() {
+  try { localStorage.removeItem(WORDLE_SAVE_KEY); } catch (e) {}
+}
+
 function startGame(mode, forcedGame) {
+  clearSaveState();
   currentMode = mode === 'random' ? 'random' : 'daily';
   const game = forcedGame && Array.isArray(forcedGame.pool) && forcedGame.pool.length
     ? forcedGame
@@ -362,6 +391,43 @@ function startNextRound() {
 }
 
 function restoreGame() {
+  // Try to restore a saved in-progress game first
+  let savedState = null;
+  try {
+    const raw = localStorage.getItem(WORDLE_SAVE_KEY);
+    if (raw) savedState = JSON.parse(raw);
+  } catch (e) { savedState = null; }
+
+  if (savedState && savedState.target && Array.isArray(savedState.guesses) && !savedState.gameOver) {
+    // Restore full game state
+    currentMode = savedState.mode === 'random' ? 'random' : 'daily';
+    currentDifficulty = [16, 24, 32].includes(savedState.difficulty) ? savedState.difficulty : DEFAULT_POOL_SIZE;
+    currentPool = [...new Set((savedState.pool || []).filter(w => WORDS.includes(w)))].slice(0, currentDifficulty || DEFAULT_POOL_SIZE);
+    if (!currentPool.length) currentPool = pickWordPool(currentMode === 'random' ? Math.random : createSeededRng(getToday()));
+    target = currentPool.includes(savedState.target) ? savedState.target : (currentPool[0] || '');
+    keyboardChars = buildKeyboardChars(currentPool);
+    guesses = savedState.guesses.map(g => ({ word: g.word, result: g.result }));
+    currentGuess = savedState.currentGuess || '';
+    gameOver = false;
+    hintUsed = !!savedState.hintUsed;
+    hintedIndex = typeof savedState.hintedIndex === 'number' ? savedState.hintedIndex : -1;
+    hintedChar = savedState.hintedChar || '';
+    resultEmoji = Array.isArray(savedState.resultEmoji) ? savedState.resultEmoji : [];
+    // Adjust elapsed time — account for time away
+    const pausedSecs = Math.round((Date.now() - (savedState.savedAt || Date.now())) / 1000);
+    currentElapsedSeconds = (savedState.elapsedBeforeSave || 0);
+    roundStartTime = Date.now() - (currentElapsedSeconds * 1000);
+    setDifficultyButtonState();
+    setModeLabel();
+    updatePoolMeta();
+    renderBoard();
+    renderKeyboard();
+    updateHintUI();
+    document.getElementById('msg').textContent = '📋 已恢复存档，继续猜吧！';
+    return;
+  }
+
+  // Fallback: no saved in-progress game
   let savedMode = 'daily';
   let savedRandomGame = null;
   let savedDifficulty = DEFAULT_POOL_SIZE;
@@ -499,6 +565,11 @@ function deleteLast() {
   renderBoard();
 }
 
+// Save state before leaving the page
+window.addEventListener('beforeunload', function() {
+  if (!gameOver && guesses.length > 0) saveGameState();
+});
+
 function submitGuess() {
   if(gameOver) return;
   if(currentGuess.length !== 4) { document.getElementById('msg').textContent = '请先选满4个字'; return; }
@@ -509,12 +580,14 @@ function submitGuess() {
   currentGuess = '';
   renderBoard();
   renderKeyboard();
+  saveGameState();
   if(result.every(r=>r==='correct')) {
     gameOver = true;
     currentElapsedSeconds = Math.max(1, Math.round((Date.now() - roundStartTime) / 1000));
     updateHintUI();
     saveWordleBest(guesses.length, currentElapsedSeconds);
     updatePoolMeta();
+    clearSaveState();
     document.getElementById('msg').textContent = `🎉 答对了！用时 ${formatDuration(currentElapsedSeconds)}`;
     showResult(true);
     return;
@@ -523,6 +596,7 @@ function submitGuess() {
     gameOver = true;
     currentElapsedSeconds = Math.max(1, Math.round((Date.now() - roundStartTime) / 1000));
     updateHintUI();
+    clearSaveState();
     document.getElementById('msg').textContent = `答案是：${target}`;
     showResult(false);
     return;
