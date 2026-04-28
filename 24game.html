@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>24点</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #f7f6f3;
+    min-height: 100vh;
+    color: #2c2c2c;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    background: linear-gradient(135deg, #3d6b5e, #2d8f6f);
+    color: white;
+    text-align: center;
+    padding: 36px 20px 28px;
+    position: relative;
+  }
+  header .back {
+    position: absolute;
+    left: 16px;
+    top: 36px;
+    font-size: 24px;
+    cursor: pointer;
+    text-decoration: none;
+    color: rgba(255,255,255,0.85);
+    transition: color 0.2s;
+  }
+  header .back:hover { color: white; }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+  header p { margin-top: 6px; font-size: 14px; opacity: 0.85; }
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 12px 16px;
+    background: #eef6f2;
+    font-size: 14px;
+    font-weight: 500;
+    color: #3d6b5e;
+  }
+  .stats-bar span { display: flex; align-items: center; gap: 4px; }
+  .game-area {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+  /* Cards */
+  .card-row {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .poker-card {
+    width: 76px;
+    height: 106px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    transition: transform 0.2s;
+    position: relative;
+  }
+  .poker-card .suit {
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+  .poker-card .num {
+    font-size: 30px;
+    font-weight: 800;
+  }
+  .poker-card.red .num { color: #d32f2f; }
+  .poker-card.black .num { color: #1a1a1a; }
+  .poker-card.used {
+    opacity: 0.35;
+    transform: scale(0.9);
+    filter: grayscale(0.8);
+  }
+  /* Expression input area */
+  .expr-area {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .expr-display {
+    background: #f5f5f5;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 24px;
+    font-family: "SF Mono", "Menlo", monospace;
+    text-align: center;
+    min-height: 56px;
+    line-height: 28px;
+    word-break: break-all;
+    color: #333;
+    margin-bottom: 12px;
+    cursor: text;
+  }
+  .expr-display .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 28px;
+    background: #3d6b5e;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .btn-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .btn-grid button {
+    border: none;
+    border-radius: 10px;
+    padding: 12px 0;
+    font-size: 20px;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    background: #f0eeeb;
+    color: #333;
+  }
+  .btn-grid button:active { transform: scale(0.93); }
+  .btn-grid .op { background: #e8e4df; color: #c97d2d; }
+  .btn-grid .paren { background: #e8e4df; color: #5a7d9a; }
+  .btn-grid .action {
+    background: #3d6b5e;
+    color: white;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  .btn-grid .action:active { background: #2d5a4e; }
+  .btn-grid .danger {
+    background: #e57373;
+    color: white;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  .btn-grid .danger:active { background: #d32f2f; }
+  /* Buttons row 2 - cards as buttons */
+  .card-btns {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .card-btn {
+    width: 56px;
+    height: 56px;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    background: white;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-btn.active {
+    border-color: #3d6b5e;
+    background: #eef6f2;
+    box-shadow: 0 0 0 2px rgba(61,107,94,0.2);
+  }
+  .card-btn:active { transform: scale(0.88); }
+  .card-btn.used-btn { opacity: 0.3; pointer-events: none; }
+
+  /* Result message */
+  .msg {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+    min-height: 30px;
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .msg.success { color: #2e7d32; }
+  .msg.error { color: #c62828; }
+  .msg.info { color: #3d6b5e; }
+
+  /* New game button */
+  .new-game {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .new-game button {
+    background: #3d6b5e;
+    color: white;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 36px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 3px 10px rgba(61,107,94,0.3);
+  }
+  .new-game button:active { transform: scale(0.95); }
+
+  /* Hint & Solve */
+  .hint-area {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .hint-area button {
+    background: white;
+    border: 1.5px solid #ddd;
+    border-radius: 999px;
+    padding: 8px 22px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .hint-area button:active { background: #f0eeeb; }
+  .hint-area button:disabled { opacity: 0.4; cursor: default; }
+
+  .solution-box {
+    background: #f9f6ef;
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+    font-size: 14px;
+    color: #5a7d5a;
+    line-height: 1.6;
+    min-height: 0;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0 16px;
+    margin-bottom: 0;
+  }
+  .solution-box.show {
+    max-height: 200px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+
+  /* responsive */
+  @media (max-width: 420px) {
+    .poker-card { width: 64px; height: 92px; }
+    .poker-card .num { font-size: 26px; }
+    .poker-card .suit { font-size: 15px; }
+    .btn-grid button { font-size: 18px; padding: 10px 0; }
+    .expr-display { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="index.html">‹</a>
+  <h1>🧮 24点</h1>
+  <p>用四张牌凑出 24</p>
+</header>
+
+<div class="stats-bar">
+  <span>🏆 连胜 <strong id="streak">0</strong></span>
+  <span>✅ 完成 <strong id="solved">0</strong></span>
+</div>
+
+<div class="game-area">
+  <div class="card-row" id="cardRow"></div>
+
+  <div class="msg" id="msg">输入表达式，让结果等于 24</div>
+
+  <div class="expr-area">
+    <div class="expr-display" id="exprDisplay">
+      <span id="exprText"></span><span class="cursor"></span>
+    </div>
+    <div class="btn-grid">
+      <button class="paren" data-key="(">(</button>
+      <button class="paren" data-key=")">)</button>
+      <button class="op" data-key="÷">÷</button>
+      <button class="op" data-key="×">×</button>
+      <button class="num-btn" data-key="7">7</button>
+      <button class="num-btn" data-key="8">8</button>
+      <button class="num-btn" data-key="9">9</button>
+      <button class="op" data-key="-">−</button>
+      <button class="num-btn" data-key="4">4</button>
+      <button class="num-btn" data-key="5">5</button>
+      <button class="num-btn" data-key="6">6</button>
+      <button class="op" data-key="+">+</button>
+      <button class="num-btn" data-key="1">1</button>
+      <button class="num-btn" data-key="2">2</button>
+      <button class="num-btn" data-key="3">3</button>
+      <button class="danger" id="btnDel">⌫</button>
+      <button class="action" id="btnCheck">✓ 检查</button>
+      <button class="danger" id="btnClear">清空</button>
+    </div>
+  </div>
+
+  <div class="new-game">
+    <button id="btnNew">🔄 下一局</button>
+  </div>
+
+  <div class="hint-area">
+    <button id="btnHint">💡 提示</button>
+    <button id="btnSolve">🔍 看答案</button>
+  </div>
+
+  <div class="solution-box" id="solutionBox"></div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── State ──
+  let numbers = [];     // current 4 numbers
+  let expression = '';  // input expression string
+  let solved = 0;
+  let streak = 0;
+  let currentSolution = '';  // stored solution for hint/solve
+
+  // DOM refs
+  const cardRow = document.getElementById('cardRow');
+  const exprText = document.getElementById('exprText');
+  const msg = document.getElementById('msg');
+  const streakEl = document.getElementById('streak');
+  const solvedEl = document.getElementById('solved');
+  const solutionBox = document.getElementById('solutionBox');
+
+  // ── Load scores ──
+  function loadScores() {
+    try {
+      solved = parseInt(localStorage.getItem('24game_solved') || '0', 10);
+      streak = parseInt(localStorage.getItem('24game_streak') || '0', 10);
+    } catch(e) { solved = 0; streak = 0; }
+    if (!Number.isFinite(solved) || solved < 0) solved = 0;
+    if (!Number.isFinite(streak) || streak < 0) streak = 0;
+    updateStats();
+  }
+  function saveScores() {
+    try {
+      localStorage.setItem('24game_solved', String(solved));
+      localStorage.setItem('24game_streak', String(streak));
+    } catch(e) {}
+  }
+  function updateStats() {
+    streakEl.textContent = streak;
+    solvedEl.textContent = solved;
+  }
+
+  // ── Card display ──
+  const suits = ['♠', '♥', '♣', '♦'];
+  const faceNames = {1:'A', 11:'J', 12:'Q', 13:'K'};
+  function numDisplay(n) { return faceNames[n] || String(n); }
+
+  function renderCards() {
+    cardRow.innerHTML = '';
+    const usedNums = parseUsedNumbers();
+    numbers.forEach((n, i) => {
+      const suit = suits[i % 4];
+      const isRed = suit === '♥' || suit === '♦';
+      const card = document.createElement('div');
+      card.className = 'poker-card' + (isRed ? ' red' : ' black');
+      if (usedNums.includes(n) && countInArray(usedNums, n) > countInArray(numbers.slice(0,i), n)) {
+        // mark as used if this occurrence is among consumed
+        const consumedBefore = numbers.slice(0,i).filter(x => x === n).length;
+        const usedCount = usedNums.filter(x => x === n).length;
+        if (consumedBefore < usedCount) card.classList.add('used');
+      }
+      card.innerHTML = `<div class="suit">${suit}</div><div class="num">${numDisplay(n)}</div>`;
+      cardRow.appendChild(card);
+    });
+  }
+
+  function countInArray(arr, val) {
+    return arr.filter(x => x === val).length;
+  }
+
+  // ── Generate new puzzle ──
+  function pickNumbers() {
+    // Generate until solvable
+    let tries = 0;
+    let nums;
+    do {
+      nums = Array.from({length:4}, () => Math.floor(Math.random() * 13) + 1);
+      tries++;
+      if (tries > 500) break;
+    } while (!findAnySolution(nums));
+    numbers = nums;
+    // store solution
+    currentSolution = findAnySolution(numbers) || '';
+  }
+
+  // ── Expression solver ──
+  // Convert user expression (with ÷, ×) to evaluable form
+  function normalizeExpr(expr) {
+    return expr
+      .replace(/÷/g, '/')
+      .replace(/×/g, '*')
+      .replace(/−/g, '-');
+  }
+
+  function parseUsedNumbers() {
+    // extract all numbers from expression, return array of values
+    const normalized = normalizeExpr(expression);
+    const tokens = normalized.match(/\d+/g) || [];
+    return tokens.map(Number);
+  }
+
+  function checkExpression() {
+    if (!expression.trim()) {
+      setMsg('请输入表达式', 'info');
+      return false;
+    }
+    const normalized = normalizeExpr(expression);
+    const usedNumbers = parseUsedNumbers();
+
+    // 1. Must use exactly 4 numbers
+    if (usedNumbers.length !== 4) {
+      setMsg(`请使用全部 4 个数字（当前用了 ${usedNumbers.length} 个）`, 'error');
+      return false;
+    }
+
+    // 2. Check numbers match
+    const sortedUsed = [...usedNumbers].sort((a,b)=>a-b);
+    const sortedTarget = [...numbers].sort((a,b)=>a-b);
+    if (sortedUsed.join(',') !== sortedTarget.join(',')) {
+      setMsg('请使用当前的四个数字，每个数字用一次', 'error');
+      return false;
+    }
+
+    // 3. Evaluate
+    let result;
+    try {
+      result = Function('"use strict"; return (' + normalized + ')')();
+    } catch(e) {
+      setMsg('表达式有语法错误，请检查括号', 'error');
+      return false;
+    }
+
+    if (typeof result !== 'number' || !Number.isFinite(result)) {
+      setMsg('计算结果无效', 'error');
+      return false;
+    }
+
+    // Allow small floating tolerance
+    if (Math.abs(result - 24) < 0.001) {
+      return true;
+    } else {
+      setMsg(`结果是 ${Math.round(result * 100) / 100}，不等于 24，再试试`, 'error');
+      return false;
+    }
+  }
+
+  function onCheck() {
+    if (checkExpression()) {
+      setMsg('🎉 太棒了！等于 24！', 'success');
+      solved++;
+      streak++;
+      saveScores();
+      updateStats();
+    } else {
+      streak = 0;
+      saveScores();
+      updateStats();
+    }
+  }
+
+  function setMsg(text, type) {
+    msg.textContent = text;
+    msg.className = 'msg' + (type ? ' ' + type : '');
+  }
+
+  // ── Find any solution (for puzzle generation & hint) ──
+  function findAnySolution(nums) {
+    const ops = ['+', '-', '*', '/'];
+    const permute = (arr) => {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const rest = [...arr.slice(0,i), ...arr.slice(i+1)];
+        for (const p of permute(rest)) {
+          result.push([arr[i], ...p]);
+        }
+      }
+      return result;
+    };
+
+    const calc = (a, b, op) => {
+      switch(op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return b !== 0 ? a / b : NaN;
+      }
+    };
+
+    // Check all permutations of numbers and all ops combos with all bracket patterns
+    const permutations = permute(nums);
+    for (const perm of permutations) {
+      const [a, b, c, d] = perm;
+      for (const o1 of ops)
+      for (const o2 of ops)
+      for (const o3 of ops) {
+        // Pattern 1: ((a o1 b) o2 c) o3 d
+        const r1 = calc(calc(calc(a, b, o1), c, o2), d, o3);
+        if (Number.isFinite(r1) && Math.abs(r1 - 24) < 0.001) {
+          return formatSolution(perm, [o1, o2, o3], 1);
+        }
+        // Pattern 2: (a o1 (b o2 c)) o3 d
+        const r2 = calc(calc(a, calc(b, c, o2), o1), d, o3);
+        if (Number.isFinite(r2) && Math.abs(r2 - 24) < 0.001) {
+          return formatSolution(perm, [o1, o2, o3], 2);
+        }
+        // Pattern 3: a o1 ((b o2 c) o3 d)
+        const r3 = calc(a, calc(calc(b, c, o2), d, o3), o1);
+        if (Number.isFinite(r3) && Math.abs(r3 - 24) < 0.001) {
+          return formatSolution(perm, [o1, o2, o3], 3);
+        }
+        // Pattern 4: (a o1 b) o2 (c o3 d)
+        const r4 = calc(calc(a, b, o1), calc(c, d, o3), o2);
+        if (Number.isFinite(r4) && Math.abs(r4 - 24) < 0.001) {
+          return formatSolution(perm, [o1, o2, o3], 4);
+        }
+        // Pattern 5: a o1 (b o2 (c o3 d))
+        const r5 = calc(a, calc(b, calc(c, d, o3), o2), o1);
+        if (Number.isFinite(r5) && Math.abs(r5 - 24) < 0.001) {
+          return formatSolution(perm, [o1, o2, o3], 5);
+        }
+      }
+    }
+    return null;
+  }
+
+  function opDisplay(op) {
+    return op === '*' ? '×' : op === '/' ? '÷' : op === '-' ? '−' : '+';
+  }
+
+  function formatSolution(perm, ops, pattern) {
+    const [a, b, c, d] = perm;
+    const [o1, o2, o3] = ops.map(opDisplay);
+    switch(pattern) {
+      case 1: return `((${a} ${o1} ${b}) ${o2} ${c}) ${o3} ${d}`;
+      case 2: return `(${a} ${o1} (${b} ${o2} ${c})) ${o3} ${d}`;
+      case 3: return `${a} ${o1} ((${b} ${o2} ${c}) ${o3} ${d})`;
+      case 4: return `(${a} ${o1} ${b}) ${o2} (${c} ${o3} ${d})`;
+      case 5: return `${a} ${o1} (${b} ${o2} (${c} ${o3} ${d}))`;
+      default: return '';
+    }
+  }
+
+  // ── Input handling ──
+  function insertChar(ch) {
+    if (expression.length >= 30) return;
+    // Auto-select first unused number if user types a digit
+    expression += ch;
+    updateDisplay();
+    setMsg('输入表达式，让结果等于 24', 'info');
+    renderCards();
+  }
+
+  function deleteChar() {
+    expression = expression.slice(0, -1);
+    updateDisplay();
+    renderCards();
+    if (!expression) setMsg('输入表达式，让结果等于 24', 'info');
+    else setMsg('', '');
+  }
+
+  function clearExpr() {
+    expression = '';
+    updateDisplay();
+    renderCards();
+    setMsg('输入表达式，让结果等于 24', 'info');
+    solutionBox.classList.remove('show');
+    solutionBox.innerHTML = '';
+  }
+
+  function updateDisplay() {
+    exprText.textContent = expression;
+  }
+
+  // ── Hint / Solve ──
+  function onHint() {
+    if (currentSolution) {
+      const parts = currentSolution.split(' ');
+      if (parts.length >= 2) {
+        const hint = parts[0] + ' ' + parts[1] + ' ' + parts[2] + ' …';
+        showSolution(`💡 提示：${hint}`);
+      } else {
+        showSolution(`💡 提示：${currentSolution}`);
+      }
+    } else {
+      setMsg('这题似乎无解……刷新看看', 'error');
+    }
+  }
+
+  function onSolve() {
+    if (currentSolution) {
+      showSolution(`🔍 答案：${currentSolution} = 24`);
+    } else {
+      setMsg('这题似乎无解……刷新看看', 'error');
+    }
+  }
+
+  function showSolution(text) {
+    solutionBox.innerHTML = text;
+    solutionBox.classList.add('show');
+  }
+
+  // ── New game ──
+  function newGame() {
+    pickNumbers();
+    expression = '';
+    updateDisplay();
+    renderCards();
+    clearExpr();
+    setMsg('输入表达式，让结果等于 24', 'info');
+    // The clearExpr already set 'info' so override
+    msg.textContent = '输入表达式，让结果等于 24';
+    msg.className = 'msg info';
+    solutionBox.classList.remove('show');
+    solutionBox.innerHTML = '';
+  }
+
+  // ── Card button clicks (enter number from card) ──
+  function onCardNumberClick(n) {
+    if (expression.length >= 30) return;
+    const usedNumbers = parseUsedNumbers();
+    const usedCount = {};
+    usedNumbers.forEach(x => { usedCount[x] = (usedCount[x] || 0) + 1; });
+    const totalCount = {};
+    numbers.forEach(x => { totalCount[x] = (totalCount[x] || 0) + 1; });
+
+    // Check if this number can still be used
+    if ((usedCount[n] || 0) >= (totalCount[n] || 0)) return;
+
+    insertChar(String(n));
+  }
+
+  // ── Init ──
+  function init() {
+    loadScores();
+    pickNumbers();
+    renderCards();
+    updateDisplay();
+
+    // Button events
+    document.querySelectorAll('.btn-grid button[data-key]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        if (expression.length >= 30) return;
+        insertChar(key);
+      });
+    });
+
+    document.getElementById('btnDel').addEventListener('click', deleteChar);
+    document.getElementById('btnClear').addEventListener('click', clearExpr);
+    document.getElementById('btnCheck').addEventListener('click', onCheck);
+    document.getElementById('btnNew').addEventListener('click', newGame);
+    document.getElementById('btnHint').addEventListener('click', onHint);
+    document.getElementById('btnSolve').addEventListener('click', onSolve);
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      const key = e.key;
+      if (/^[0-9()+\-*/]$/.test(key)) {
+        e.preventDefault();
+        const map = {'*':'×', '/':'÷', '-':'−'};
+        insertChar(map[key] || key);
+      } else if (key === 'Enter') {
+        e.preventDefault();
+        onCheck();
+      } else if (key === 'Backspace') {
+        e.preventDefault();
+        deleteChar();
+      } else if (key === 'Escape') {
+        e.preventDefault();
+        clearExpr();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState !== 'loading') init();
+})();
+</script>
+</body>
+</html>

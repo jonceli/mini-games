@@ -129,6 +129,13 @@
       <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
+    <a class="card" href="24game.html" data-game="24game">
+      <div class="icon">🧮</div>
+      <h2>24点</h2>
+      <p>四张牌凑出 24，挑战脑力</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
+      <button class="btn">开始游戏</button>
+    </a>
     <a class="card" href="snake.html" data-game="snake">
       <div class="icon">🐍</div>
       <h2>贪吃蛇</h2>
@@ -187,6 +194,9 @@
       } else if (game === 'snake') {
         const best = readInt('snake_high');
         text = `最佳成绩：${best ? best.toLocaleString() : '暂无'}`;
+      } else if (game === '24game') {
+        const best = readInt('24game_solved');
+        text = best ? `已完成 ${best} 局` : '暂无';
       }
 
       bestEl.textContent = text;
