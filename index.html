@@ -129,6 +129,13 @@
       <div class="best" data-best>最佳成绩：暂无</div>
       <button class="btn">开始游戏</button>
     </a>
+    <a class="card" href="snake.html" data-game="snake">
+      <div class="icon">🐍</div>
+      <h2>贪吃蛇</h2>
+      <p>方向键控制，吃豆子长大</p>
+      <div class="best" data-best>最佳成绩：暂无</div>
+      <button class="btn">开始游戏</button>
+    </a>
   </div>
 </main>
 <footer>用 ❤️ 制作，适合旅途</footer>
@@ -177,6 +184,9 @@
       } else if (game === 'wordle') {
         const best = readInt('wordle_best_attempts');
         text = `最佳成绩：${best ? `${best} 次猜中` : '暂无'}`;
+      } else if (game === 'snake') {
+        const best = readInt('snake_high');
+        text = `最佳成绩：${best ? best.toLocaleString() : '暂无'}`;
       }
 
       bestEl.textContent = text;
