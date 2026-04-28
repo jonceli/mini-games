@@ -14,26 +14,6 @@
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
-  header {
-    background: linear-gradient(135deg, #3d6b5e, #2d8f6f);
-    color: white;
-    text-align: center;
-    padding: 36px 20px 28px;
-    position: relative;
-  }
-  header .back {
-    position: absolute;
-    left: 16px;
-    top: 36px;
-    font-size: 24px;
-    cursor: pointer;
-    text-decoration: none;
-    color: rgba(255,255,255,0.85);
-    transition: color 0.2s;
-  }
-  header .back:hover { color: white; }
-  header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
-  header p { margin-top: 6px; font-size: 14px; opacity: 0.85; }
   .stats-bar {
     display: flex;
     justify-content: center;
@@ -269,12 +249,10 @@
 </head>
 <body>
 
-<header>
-  <a class="back" href="index.html">‹</a>
-  <h1>🧮 24点</h1>
-  <p>用四张牌凑出 24</p>
-</header>
-
+<div class="top-bar" style="display:flex;align-items:center;padding:16px 16px 8px;max-width:520px;margin:0 auto">
+  <a class="back" href="index.html" style="text-decoration:none;color:#3d6b5e;font-size:15px;font-weight:500;white-space:nowrap">← 返回</a>
+  <div class="title" style="font-size:22px;font-weight:700;color:#3d6b5e;flex:1;text-align:center">🧮 24点</div>
+</div>
 <div class="stats-bar">
   <span>🏆 连胜 <strong id="streak">0</strong></span>
   <span>✅ 完成 <strong id="solved">0</strong></span>
