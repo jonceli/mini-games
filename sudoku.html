@@ -87,6 +87,7 @@
 </div>
 <script>
 const SUDOKU_BEST_KEY_PREFIX = 'sudoku_best_';
+const SAVE_KEY = 'sudoku_save_state';
 let solution, puzzle, userGrid, selected, holes, timerInterval, timeElapsed, errorCount, gameWon;
 
 function getSudokuBest(holesCount) {
@@ -121,6 +122,32 @@ function saveSudokuBest(holesCount, seconds) {
   updateSudokuBestDisplay(holesCount);
 }
 
+function saveGameState() {
+  if (gameWon) return;
+  try {
+    const state = {
+      holes,
+      solution,
+      puzzle,
+      userGrid,
+      timeElapsed,
+      errorCount,
+      gameWon
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+
+function clearSaveState() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+
 function setDiff(h) {
   holes = h;
   document.querySelectorAll('.diff-btn').forEach((b,i) => b.classList.toggle('active', [35,45,55][i]===h));
@@ -129,6 +156,7 @@ function setDiff(h) {
 
 function newGame() {
   clearInterval(timerInterval);
+  clearSaveState();
   timeElapsed = 0; errorCount = 0; gameWon = false; selected = null;
   document.getElementById('errors').textContent = '0';
   document.getElementById('timer').textContent = '00:00';
@@ -235,6 +263,7 @@ function inputNum(n) {
   userGrid[r][c] = n;
   if(n!==solution[r][c]) { errorCount++; document.getElementById('errors').textContent = errorCount; }
   render();
+  if (!gameWon) saveGameState();
   checkWin();
 }
 
@@ -244,18 +273,82 @@ function clearSelected() {
   if(puzzle[r][c]!==0) return;
   userGrid[r][c] = 0;
   render();
+  if (!gameWon) saveGameState();
 }
 
 function checkWin() {
   for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(userGrid[r][c]!==solution[r][c]) return;
   gameWon = true;
   clearInterval(timerInterval);
+  clearSaveState();
   saveSudokuBest(holes || 35, timeElapsed);
   const m = String(Math.floor(timeElapsed/60)).padStart(2,'0');
   const s = String(timeElapsed%60).padStart(2,'0');
   document.getElementById('modal-title').textContent = '🎉 完成！';
   document.getElementById('modal-msg').textContent = `用时 ${m}:${s}，错误 ${errorCount} 次`;
   document.getElementById('overlay').classList.add('show');
+}
+
+function hasUserEntries() {
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++) {
+    if(puzzle && puzzle[r][c]===0 && userGrid && userGrid[r][c]!==0) return true;
+  }
+  return false;
+}
+
+function saveBeforeUnload() {
+  if (!gameWon && hasUserEntries()) saveGameState();
+}
+
+function showRestoreToast() {
+  const toast = document.createElement('div');
+  toast.textContent = '已恢复之前的进度';
+  Object.assign(toast.style, {
+    position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)',
+    background: '#3d6b5e', color: 'white', padding: '10px 24px',
+    borderRadius: '20px', fontSize: '14px', fontWeight: '500',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: '99',
+    transition: 'opacity 0.4s', opacity: '1'
+  });
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 2500);
+}
+
+function restoreGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    if (!state || state.gameWon) { clearSaveState(); return false; }
+    clearInterval(timerInterval);
+    holes = state.holes;
+    solution = state.solution;
+    puzzle = state.puzzle;
+    userGrid = state.userGrid;
+    timeElapsed = state.timeElapsed;
+    errorCount = state.errorCount;
+    gameWon = false;
+    selected = null;
+    document.getElementById('errors').textContent = errorCount;
+    const m = String(Math.floor(timeElapsed/60)).padStart(2,'0');
+    const s = String(timeElapsed%60).padStart(2,'0');
+    document.getElementById('timer').textContent = `${m}:${s}`;
+    document.querySelectorAll('.diff-btn').forEach((b,i) => b.classList.toggle('active', [35,45,55][i]===holes));
+    updateSudokuBestDisplay(holes);
+    timerInterval = setInterval(() => {
+      if(gameWon) return;
+      timeElapsed++;
+      const mm = String(Math.floor(timeElapsed/60)).padStart(2,'0');
+      const ss = String(timeElapsed%60).padStart(2,'0');
+      document.getElementById('timer').textContent = `${mm}:${ss}`;
+    }, 1000);
+    render();
+    showRestoreToast();
+    return true;
+  } catch (e) {
+    clearSaveState();
+    return false;
+  }
 }
 
 document.addEventListener('keydown', e => {
@@ -267,9 +360,11 @@ document.addEventListener('keydown', e => {
   else if(e.key==='ArrowRight'&&selected) { selected[1]=Math.min(8,selected[1]+1); render(); }
 });
 
+window.addEventListener('beforeunload', saveBeforeUnload);
+
 holes = 35;
 updateSudokuBestDisplay(holes);
-newGame();
+if (!restoreGame()) newGame();
 </script>
 </body>
 </html>

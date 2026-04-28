@@ -151,8 +151,18 @@
 </div>
 <script>
 let board, score, best, moved;
+const SAVE_KEY = '2048_save_state';
+
+function saveGameState() {
+  localStorage.setItem(SAVE_KEY, JSON.stringify({board, score, best}));
+}
+
+function clearSaveState() {
+  localStorage.removeItem(SAVE_KEY);
+}
 
 function newGame() {
+  clearSaveState();
   board = Array.from({length:4}, () => Array(4).fill(0));
   score = 0;
   best = parseInt(localStorage.getItem('2048best') || '0');
@@ -219,7 +229,7 @@ function move(dir) {
       row.forEach((v,i)=>board[3-i][c]=v); if(ch) changed=true;
     }
   }
-  if(changed) { addTile(); render(); checkEnd(); }
+  if(changed) { addTile(); render(); checkEnd(); saveGameState(); }
 }
 
 function checkEnd() {
@@ -231,6 +241,7 @@ function checkEnd() {
   document.getElementById('modal-title').textContent = '游戏结束';
   document.getElementById('modal-msg').textContent = `最终得分：${score}`;
   document.getElementById('overlay').classList.add('show');
+  clearSaveState();
 }
 
 document.addEventListener('keydown', e => {
@@ -250,7 +261,29 @@ document.getElementById('board').addEventListener('touchend', e => {
   else move(dy>0?'down':'up');
 }, {passive:true});
 
-newGame();
+window.addEventListener('beforeunload', function() {
+  if (score > 0 || board.some(r => r.some(v => v > 0))) saveGameState();
+});
+
+function restoreGame() {
+  const saved = localStorage.getItem(SAVE_KEY);
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      if (data.board && data.board.length === 4) {
+        board = data.board;
+        score = data.score || 0;
+        best = data.best || parseInt(localStorage.getItem('2048best') || '0');
+        render();
+        document.getElementById('modal-title').textContent = '📋 已恢复存档';
+        return;
+      }
+    } catch(e) {}
+  }
+  newGame();
+}
+
+restoreGame();
 </script>
 </body>
 </html>

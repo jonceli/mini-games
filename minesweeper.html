@@ -79,6 +79,7 @@ const DIFFS = [
   {rows:16, cols:30, mines:99}
 ];
 const MINESWEEPER_BEST_KEY_PREFIX = 'minesweeper_best_';
+const SAVE_KEY = 'minesweeper_save_state';
 let diff = 0, grid, revealed, flagged, mineSet, firstClick, gameOver, timerInterval, timeElapsed, flagCount;
 
 function saveBestTime(diffIndex, seconds) {
@@ -91,6 +92,27 @@ function saveBestTime(diffIndex, seconds) {
   }
 }
 
+function saveGameState() {
+  try {
+    const state = {
+      diff, grid, revealed, flagged,
+      mineSet: Array.from(mineSet),
+      firstClick, gameOver, timeElapsed, flagCount
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+
+function clearSaveState() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+
 function setDiff(d) {
   document.querySelectorAll('.diff-btn').forEach((b,i) => b.classList.toggle('active', i===d));
   diff = d;
@@ -98,6 +120,7 @@ function setDiff(d) {
 }
 
 function newGame() {
+  clearSaveState();
   clearInterval(timerInterval);
   timeElapsed = 0;
   document.getElementById('timer').textContent = '0';
@@ -154,6 +177,7 @@ function handleClick(r, c) {
   if(mineSet.has(r*100+c)) {
     revealed[r][c] = true;
     gameOver = true;
+    clearSaveState();
     clearInterval(timerInterval);
     render(r, c);
     setTimeout(() => {
@@ -166,6 +190,7 @@ function handleClick(r, c) {
   reveal(r, c);
   render();
   checkWin();
+  if(!gameOver) saveGameState();
 }
 
 function handleFlag(r, c) {
@@ -174,6 +199,7 @@ function handleFlag(r, c) {
   flagCount += flagged[r][c] ? 1 : -1;
   document.getElementById('mines-left').textContent = DIFFS[diff].mines - flagCount;
   render();
+  if(!gameOver) saveGameState();
 }
 
 function checkWin() {
@@ -182,6 +208,7 @@ function checkWin() {
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(revealed[r][c]) count++;
   if(count === rows*cols - mines) {
     gameOver = true;
+    clearSaveState();
     clearInterval(timerInterval);
     saveBestTime(diff, timeElapsed);
     setTimeout(() => {
@@ -228,7 +255,45 @@ function render(hitR, hitC) {
   }
 }
 
-newGame();
+window.addEventListener('beforeunload', () => {
+  if (firstClick === false && !gameOver) saveGameState();
+});
+
+function restoreGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) { newGame(); return; }
+    const state = JSON.parse(raw);
+    diff = state.diff;
+    grid = state.grid;
+    revealed = state.revealed;
+    flagged = state.flagged;
+    mineSet = new Set(state.mineSet);
+    firstClick = state.firstClick;
+    gameOver = state.gameOver;
+    timeElapsed = state.timeElapsed;
+    flagCount = state.flagCount;
+    document.getElementById('timer').textContent = timeElapsed;
+    document.getElementById('mines-left').textContent = DIFFS[diff].mines - flagCount;
+    document.querySelectorAll('.diff-btn').forEach((b,i) => b.classList.toggle('active', i===diff));
+    if (!gameOver && !firstClick) {
+      timerInterval = setInterval(() => {
+        timeElapsed++;
+        document.getElementById('timer').textContent = timeElapsed;
+      }, 1000);
+    }
+    render();
+    const toast = document.createElement('div');
+    toast.textContent = '已恢复之前的游戏进度';
+    toast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#3d6b5e;color:white;padding:10px 24px;border-radius:20px;font-size:14px;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  } catch (e) {
+    newGame();
+  }
+}
+
+restoreGame();
 </script>
 </body>
 </html>

@@ -311,6 +311,7 @@
   let solved = 0;
   let streak = 0;
   let currentSolution = '';  // stored solution for hint/solve
+  const SAVE_KEY = '24game_save_state';
 
   // DOM refs
   const cardRow = document.getElementById('cardRow');
@@ -339,6 +340,23 @@
   function updateStats() {
     streakEl.textContent = streak;
     solvedEl.textContent = solved;
+  }
+
+  function saveGameState() {
+    try {
+      const state = {
+        numbers: numbers,
+        expression: expression,
+        currentSolution: currentSolution,
+        solutionBoxVisible: solutionBox.classList.contains('show'),
+        solutionBoxContent: solutionBox.innerHTML
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function clearSaveState() {
+    try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
   }
 
   // ── Card display ──
@@ -550,6 +568,7 @@
     updateDisplay();
     setMsg('输入表达式，让结果等于 24', 'info');
     renderCards();
+    saveGameState();
   }
 
   function deleteChar() {
@@ -558,6 +577,7 @@
     renderCards();
     if (!expression) setMsg('输入表达式，让结果等于 24', 'info');
     else setMsg('', '');
+    saveGameState();
   }
 
   function clearExpr() {
@@ -567,6 +587,7 @@
     setMsg('输入表达式，让结果等于 24', 'info');
     solutionBox.classList.remove('show');
     solutionBox.innerHTML = '';
+    saveGameState();
   }
 
   function updateDisplay() {
@@ -603,6 +624,7 @@
 
   // ── New game ──
   function newGame() {
+    clearSaveState();
     pickNumbers();
     expression = '';
     updateDisplay();
@@ -632,11 +654,33 @@
   }
 
   // ── Init ──
+  function restoreGame() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const state = JSON.parse(raw);
+      if (!Array.isArray(state.numbers) || state.numbers.length !== 4) return false;
+      numbers = state.numbers;
+      expression = state.expression || '';
+      currentSolution = state.currentSolution || '';
+      renderCards();
+      updateDisplay();
+      if (state.solutionBoxVisible && state.solutionBoxContent) {
+        solutionBox.classList.add('show');
+        solutionBox.innerHTML = state.solutionBoxContent;
+      }
+      setMsg('📋 已恢复存档，继续算吧！', 'info');
+      return true;
+    } catch(e) { return false; }
+  }
+
   function init() {
     loadScores();
-    pickNumbers();
-    renderCards();
-    updateDisplay();
+    if (!restoreGame()) {
+      pickNumbers();
+      renderCards();
+      updateDisplay();
+    }
 
     // Button events
     document.querySelectorAll('.btn-grid button[data-key]').forEach(btn => {
@@ -676,6 +720,12 @@
 
   document.addEventListener('DOMContentLoaded', init);
   if (document.readyState !== 'loading') init();
+
+  window.addEventListener('beforeunload', function() {
+    if (expression || (numbers.length === 4 && numbers.some(n => n > 0))) {
+      saveGameState();
+    }
+  });
 })();
 </script>
 </body>

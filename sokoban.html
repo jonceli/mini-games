@@ -159,6 +159,7 @@ const LEVELS = [
 ];
 
 const SOKOBAN_BEST_KEY_PREFIX = 'sokoban_best_level_';
+const SAVE_KEY = 'sokoban_save_state';
 let levelIdx, grid, playerPos, steps, history;
 const CELL = 44;
 const COLORS = {
@@ -181,7 +182,27 @@ function saveSokobanBest(levelIndex, stepCount) {
   }
 }
 
+function saveGameState() {
+  try {
+    const state = {
+      levelIdx,
+      grid: grid.map(r=>[...r]),
+      playerPos: [...playerPos],
+      steps,
+      history: history.map(h=>({grid: h.grid.map(r=>[...r]), playerPos: [...h.playerPos], steps: h.steps}))
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch(e) {
+    // ignore storage failures
+  }
+}
+
+function clearSaveState() {
+  try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+}
+
 function loadLevel(idx) {
+  clearSaveState();
   levelIdx = idx;
   grid = LEVELS[idx % LEVELS.length].map(r => [...r]);
   playerPos = null;
@@ -261,6 +282,7 @@ function movePlayer(dr, dc) {
   playerPos = [nr, nc];
   steps++;
   history.push(state);
+  saveGameState();
   document.getElementById('steps').textContent = steps;
   render();
   checkWin();
@@ -281,6 +303,7 @@ function checkWin() {
     if(grid[r][c]===3) return; // box not on goal
   }
   saveSokobanBest(levelIdx, steps);
+  clearSaveState();
   document.getElementById('modal-msg').textContent = `第 ${levelIdx+1} 关，用了 ${steps} 步`;
   document.getElementById('overlay').classList.add('show');
 }
@@ -309,7 +332,38 @@ document.getElementById('game-canvas').addEventListener('touchend', e => {
 }, {passive:true});
 
 window.addEventListener('resize', () => { resizeCanvas(); render(); });
-loadLevel(0);
+
+window.addEventListener('beforeunload', () => {
+  if (history.length > 0 || steps > 0) saveGameState();
+});
+
+function restoreGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const state = JSON.parse(raw);
+      levelIdx = state.levelIdx;
+      grid = state.grid;
+      playerPos = state.playerPos;
+      steps = state.steps;
+      history = state.history;
+      resizeCanvas();
+      render();
+      document.getElementById('level-num').textContent = levelIdx + 1;
+      document.getElementById('steps').textContent = steps;
+      // Show restore message
+      const msg = document.createElement('div');
+      msg.textContent = '📋 已恢复存档';
+      msg.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#3d6b5e;color:white;padding:10px 20px;border-radius:20px;font-size:15px;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:opacity 0.5s;';
+      document.body.appendChild(msg);
+      setTimeout(() => { msg.style.opacity = '0'; setTimeout(() => msg.remove(), 500); }, 2000);
+      return;
+    }
+  } catch(e) {}
+  loadLevel(0);
+}
+
+restoreGame();
 </script>
 </body>
 </html>

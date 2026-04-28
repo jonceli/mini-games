@@ -182,6 +182,7 @@
     <div class="stat"><div class="stat-label">最高</div><div class="stat-value" id="hiscore">0</div></div>
     <div class="stat"><div class="stat-label">等级</div><div class="stat-value" id="level">1</div></div>
     <div class="stat"><div class="stat-label">消行</div><div class="stat-value" id="lines">0</div></div>
+    <div id="restore-msg" style="display:none;position:absolute;left:50%;top:100%;transform:translateX(-50%);background:rgba(0,200,100,0.9);color:#fff;font-size:12px;padding:4px 12px;border-radius:6px;white-space:nowrap;z-index:10;margin-top:4px"></div>
   </div>
 
   <div id="main">
@@ -257,6 +258,7 @@ function resizeCanvas() {
 
 // ── Game state ─────────────────────────────────────────────
 const HISCORE_KEY = 'tetris_hiscore';
+const SAVE_KEY = 'tetris_save_state';
 let board, piece, nextPiece, score, hiscore = 0, level, lines;
 let gameOver, paused, dropInterval, lastTime, animId;
 let fastDrop = false, dropAcc = 0;
@@ -274,6 +276,27 @@ function loadHiscore() {
 function saveHiscore() {
   try {
     localStorage.setItem(HISCORE_KEY, String(hiscore));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+
+// ── Save / Restore ──────────────────────────────────────────
+function saveGameState() {
+  try {
+    const state = {
+      board, piece, nextPiece,
+      score, level, lines,
+      gameOver, paused
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // ignore storage failures
+  }
+}
+function clearSaveState() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
   } catch (e) {
     // ignore storage failures
   }
@@ -317,6 +340,7 @@ function place() {
   nextPiece = randomPiece();
   if (!isValid(piece.shape, piece.x, piece.y)) { endGame(); return; }
   drawNext();
+  saveGameState();
 }
 function clearLines() {
   let cleared = 0;
@@ -333,6 +357,7 @@ function clearLines() {
     level = Math.floor(lines/10) + 1;
     dropInterval = Math.max(80, 800 - (level-1)*70);
     updateUI();
+    saveGameState();
   }
 }
 function hardDrop() {
@@ -436,6 +461,7 @@ function startGame() {
   board = createBoard();
   score = 0; level = 1; lines = 0; gameOver = false; paused = false;
   dropInterval = 800; dropAcc = 0; lastTime = 0; fastDrop = false;
+  clearSaveState();
   resizeCanvas();
   piece = randomPiece(); nextPiece = randomPiece();
   updateUI(); drawNext();
@@ -446,6 +472,7 @@ function startGame() {
 
 function endGame() {
   gameOver = true;
+  clearSaveState();
   const ov = document.getElementById('overlay');
   ov.innerHTML = `
     <h2>游戏结束</h2>
@@ -524,6 +551,13 @@ canvas.addEventListener('touchend', e => {
 // ── Resize ─────────────────────────────────────────────────
 window.addEventListener('resize', () => { if (board) resizeCanvas(); });
 
+// ── Save on page leave ─────────────────────────────────────
+window.addEventListener('beforeunload', () => {
+  if (gameOver) return;
+  const hasCells = board && board.some(row => row.some(c => c !== 0));
+  if (score > 0 || hasCells) saveGameState();
+});
+
 // ── PWA install hint ───────────────────────────────────────
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -536,6 +570,50 @@ if (!isInStandalone) {
   }, 2000);
 }
 
+function showRestoreMsg() {
+  const el = document.getElementById('restore-msg');
+  if (!el) return;
+  el.textContent = '📋 已恢复存档';
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function restoreGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) { startGame(); return; }
+    const saved = JSON.parse(raw);
+    if (!saved || !saved.board || !saved.piece || !saved.nextPiece) { startGame(); return; }
+
+    board = saved.board;
+    piece = saved.piece;
+    nextPiece = saved.nextPiece;
+    score = saved.score || 0;
+    level = saved.level || 1;
+    lines = saved.lines || 0;
+
+    gameOver = false;
+    paused = false;
+    dropAcc = 0;
+    lastTime = 0;
+    fastDrop = false;
+    dropInterval = Math.max(80, 800 - (level - 1) * 70);
+
+    if (animId) cancelAnimationFrame(animId);
+
+    resizeCanvas();
+    updateUI();
+    drawNext();
+    draw();
+    document.getElementById('overlay').style.display = 'none';
+    animId = requestAnimationFrame(gameLoop);
+    showRestoreMsg();
+  } catch (e) {
+    // If anything fails, start fresh
+    startGame();
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────
 CELL = 28;
 canvas.width = COLS * CELL;
@@ -543,6 +621,7 @@ canvas.height = ROWS * CELL;
 ctx.fillStyle = '#0d0d20';
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 loadHiscore();
+restoreGame();
 </script>
 </body>
 </html>

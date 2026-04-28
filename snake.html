@@ -151,6 +151,8 @@
   </div>
 </div>
 
+<div id="restoreToast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#3d6b5e;color:white;padding:8px 20px;border-radius:20px;font-size:14px;display:none;z-index:100;transition:opacity 0.5s;">📋 已恢复存档</div>
+
 <script>
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
@@ -163,6 +165,7 @@
   
   const gridSize = 20;
   const tileCount = canvas.width / gridSize;
+  const SAVE_KEY = 'snake_save_state';
   
   let snake = [{x: 10, y: 10}];
   let food = {x: 15, y: 15};
@@ -173,6 +176,25 @@
   let gameStarted = false;
   
   highScoreEl.textContent = highScore;
+  
+  function saveGameState() {
+    const state = {
+      snake: snake,
+      food: food,
+      dx: dx,
+      dy: dy,
+      score: score
+    };
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    } catch(e) {}
+  }
+  
+  function clearSaveState() {
+    try {
+      localStorage.removeItem(SAVE_KEY);
+    } catch(e) {}
+  }
   
   function drawGame() {
     // 清空画布
@@ -283,6 +305,7 @@
     }
     
     drawGame();
+    saveGameState();
   }
   
   function generateFood() {
@@ -300,6 +323,7 @@
     clearInterval(gameLoop);
     gameLoop = null;
     gameStarted = false;
+    clearSaveState();
     
     if (score > highScore) {
       highScore = score;
@@ -316,6 +340,7 @@
   
   function startGame() {
     clearInterval(gameLoop);
+    clearSaveState();
     snake = [{x: 10, y: 10}];
     dx = 1;
     dy = 0;
@@ -376,8 +401,50 @@
     e.preventDefault();
   }, {passive: false});
   
-  // 初始绘制
-  drawGame();
+  function showRestoreMessage() {
+    const existing = document.getElementById('restoreToast');
+    if (existing) {
+      existing.style.display = 'block';
+      existing.style.opacity = '1';
+      clearTimeout(existing._timeout);
+      existing._timeout = setTimeout(() => { existing.style.opacity = '0'; }, 2000);
+    }
+  }
+  
+  function restoreGame() {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        snake = state.snake;
+        food = state.food;
+        dx = state.dx;
+        dy = state.dy;
+        score = state.score;
+        scoreEl.textContent = score;
+        gameStarted = true;
+        overlay.style.display = 'none';
+        drawGame();
+        gameLoop = setInterval(moveSnake, 250);
+        showRestoreMessage();
+      } catch(e) {
+        clearSaveState();
+        startGame();
+      }
+    } else {
+      startGame();
+    }
+  }
+  
+  // 页面关闭前保存状态
+  window.addEventListener('beforeunload', () => {
+    if (gameStarted && snake.length > 0) {
+      saveGameState();
+    }
+  });
+  
+  // 初始：尝试恢复存档
+  restoreGame();
 </script>
 </body>
 </html>
