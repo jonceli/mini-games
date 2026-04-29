@@ -209,7 +209,7 @@
   let food = {x: 15, y: 15};
   let dx = 0, dy = 0;
   let score = 0;
-  let highScore = parseInt(localStorage.getItem('snake_high') || '0', 10);
+  let highScore = parseInt(localStorage.getItem('snake_high_medium') || '0', 10);
   let gameLoop = null;
   let gameStarted = false;
   let isPaused = false;
@@ -234,6 +234,8 @@
     currentDifficulty = diff;
     document.querySelectorAll('#difficultySelect button').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
+    highScore = parseInt(localStorage.getItem('snake_high_' + diff) || '0', 10);
+    highScoreEl.textContent = highScore;
   }
   
   function drawGame() {
@@ -358,7 +360,7 @@
     
     if (score > highScore) {
       highScore = score;
-      localStorage.setItem('snake_high', highScore);
+      localStorage.setItem('snake_high_' + currentDifficulty, highScore);
       highScoreEl.textContent = highScore;
       showOverlay(`新纪录！🎉 分数: ${score}`, '游戏结束');
     } else {
