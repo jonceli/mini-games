@@ -109,7 +109,7 @@ const WORDS = ["一丁不识","一不扭众","一世之雄","一世龙门","一�
 const WORDLE_RANDOM_GAME_KEY = 'wordle_random_game';
 const WORDLE_MODE_KEY = 'wordle_mode';
 const WORDLE_DIFFICULTY_KEY = 'wordle_difficulty';
-const WORDLE_BEST_KEY = 'wordle_best_attempts';
+const WORDLE_BEST_KEY_PREFIX = 'wordle_best_attempts_';
 const WORDLE_BEST_TIME_PREFIX = 'wordle_best_time_';
 const WORDLE_SAVE_KEY = 'wordle_save_state';
 const DEFAULT_POOL_SIZE = 24;
@@ -118,8 +118,9 @@ let target, guesses, currentGuess, gameOver, resultEmoji, hintUsed, hintedIndex,
 
 function saveWordleBest(attempts, seconds) {
   try {
-    const prev = parseInt(localStorage.getItem(WORDLE_BEST_KEY) || '0', 10);
-    if (!prev || attempts < prev) localStorage.setItem(WORDLE_BEST_KEY, String(attempts));
+    const bestKey = WORDLE_BEST_KEY_PREFIX + String(currentDifficulty || DEFAULT_POOL_SIZE);
+    const prev = parseInt(localStorage.getItem(bestKey) || '0', 10);
+    if (!prev || attempts < prev) localStorage.setItem(bestKey, String(attempts));
     const timeKey = WORDLE_BEST_TIME_PREFIX + String(currentDifficulty || DEFAULT_POOL_SIZE);
     const prevTime = parseInt(localStorage.getItem(timeKey) || '0', 10);
     if (seconds && (!prevTime || seconds < prevTime)) localStorage.setItem(timeKey, String(seconds));
