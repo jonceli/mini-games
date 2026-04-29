@@ -52,6 +52,8 @@
     margin-top: 16px;
     display: flex;
     gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   
   button {
@@ -67,6 +69,8 @@
   }
   button:hover { background: #2d5b4e; }
   button:active { transform: scale(0.97); }
+  button.pause-btn { background: #8b6914; }
+  button.pause-btn:hover { background: #a07a18; }
   
   #gameOverlay {
     position: absolute;
@@ -74,14 +78,31 @@
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
-    background: rgba(0,0,0,0.85);
+    background: rgba(0,0,0,0.9);
     padding: 32px 40px;
     border-radius: 16px;
     display: none;
     z-index: 10;
+    min-width: 280px;
   }
   #gameOverlay h2 { font-size: 22px; margin-bottom: 8px; }
   #gameOverlay p { font-size: 14px; opacity: 0.8; margin-bottom: 16px; }
+  
+  #difficultySelect {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  #difficultySelect button {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
+  #difficultySelect button.easy { background: #2d8b5e; }
+  #difficultySelect button.medium { background: #8b7a14; }
+  #difficultySelect button.hard { background: #8b3d14; }
+  #difficultySelect button.selected { outline: 2px solid #fff; }
   
   #mobileControls {
     display: none;
@@ -115,13 +136,27 @@
     #mobileControls { display: grid; }
     #gameCanvas { max-width: 95vw; max-height: 60vh; }
   }
+  
+  a.back-link {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    color: #fff;
+    opacity: 0.7;
+    font-size: 14px;
+    z-index: 100;
+    text-decoration: none;
+  }
+  a.back-link:hover { opacity: 1; }
 </style>
 </head>
 <body>
-  <div class="top-bar" style="display:flex;align-items:center;padding:16px 16px 8px;width:100%;max-width:480px">
-    <a class="back" href="index.html" style="text-decoration:none;color:#aaa;font-size:14px;font-weight:500;white-space:nowrap">← 返回</a>
-    <div class="title" style="font-size:20px;font-weight:700;color:#eee;flex:1;text-align:center">🐍 贪吃蛇</div>
-  </div>
+<a href="index.html" class="back-link">← 返回主页</a>
+
+<header>
+  <h1>🐍 贪吃蛇</h1>
+  <p>选择难度，方向键 / WASD 控制</p>
+</header>
 
 <div id="gameContainer">
   <div id="scoreBoard">
@@ -132,13 +167,19 @@
   <canvas id="gameCanvas" width="400" height="400"></canvas>
   
   <div id="gameOverlay">
-    <h2 id="overlayTitle">游戏结束</h2>
-    <p id="overlayMsg">你的分数: <span id="finalScore">0</span></p>
-    <button onclick="startGame()">再来一局</button>
+    <h2 id="overlayTitle">贪吃蛇</h2>
+    <p id="overlayMsg">选择难度开始游戏</p>
+    <div id="difficultySelect">
+      <button class="easy" onclick="selectDifficulty('easy', this)">简单 (250ms)</button>
+      <button class="medium selected" onclick="selectDifficulty('medium', this)">中等 (150ms)</button>
+      <button class="hard" onclick="selectDifficulty('hard', this)">困难 (100ms)</button>
+    </div>
+    <button onclick="startGame()">开始游戏</button>
   </div>
   
   <div id="controls">
-    <button onclick="startGame()">开始游戏</button>
+    <button onclick="startGame()">重新开始</button>
+    <button class="pause-btn" onclick="togglePause()">暂停</button>
   </div>
   
   <div id="mobileControls">
@@ -150,8 +191,6 @@
     </div>
   </div>
 </div>
-
-<div id="restoreToast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#3d6b5e;color:white;padding:8px 20px;border-radius:20px;font-size:14px;display:none;z-index:100;transition:opacity 0.5s;">📋 已恢复存档</div>
 
 <script>
   const canvas = document.getElementById('gameCanvas');
@@ -165,7 +204,6 @@
   
   const gridSize = 20;
   const tileCount = canvas.width / gridSize;
-  const SAVE_KEY = 'snake_save_state';
   
   let snake = [{x: 10, y: 10}];
   let food = {x: 15, y: 15};
@@ -174,34 +212,33 @@
   let highScore = parseInt(localStorage.getItem('snake_high') || '0', 10);
   let gameLoop = null;
   let gameStarted = false;
+  let isPaused = false;
+  let currentDifficulty = 'medium';
+  let speedMap = { easy: 250, medium: 150, hard: 100 };
   
   highScoreEl.textContent = highScore;
+  showOverlay('选择难度开始游戏', '贪吃蛇');
   
-  function saveGameState() {
-    const state = {
-      snake: snake,
-      food: food,
-      dx: dx,
-      dy: dy,
-      score: score
-    };
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    } catch(e) {}
+  function showOverlay(msg, title) {
+    overlayTitle.textContent = title || '游戏结束';
+    overlayMsg.textContent = msg;
+    overlay.style.display = 'block';
   }
   
-  function clearSaveState() {
-    try {
-      localStorage.removeItem(SAVE_KEY);
-    } catch(e) {}
+  function hideOverlay() {
+    overlay.style.display = 'none';
+  }
+  
+  function selectDifficulty(diff, btn) {
+    currentDifficulty = diff;
+    document.querySelectorAll('#difficultySelect button').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
   }
   
   function drawGame() {
-    // 清空画布
     ctx.fillStyle = '#0f0f23';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // 画网格（浅色）
     ctx.strokeStyle = 'rgba(255,255,255,0.05)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= tileCount; i++) {
@@ -215,7 +252,6 @@
       ctx.stroke();
     }
     
-    // 画蛇
     snake.forEach((segment, index) => {
       const gradient = ctx.createLinearGradient(
         segment.x * gridSize, segment.y * gridSize,
@@ -231,7 +267,6 @@
       ctx.fillStyle = gradient;
       ctx.fillRect(segment.x * gridSize + 1, segment.y * gridSize + 1, gridSize - 2, gridSize - 2);
       
-      // 蛇头眼睛
       if (index === 0) {
         ctx.fillStyle = '#fff';
         const eyeSize = 3;
@@ -251,7 +286,6 @@
       }
     });
     
-    // 画食物（红色圆点）
     ctx.fillStyle = '#f00';
     ctx.beginPath();
     ctx.arc(
@@ -275,17 +309,15 @@
   }
   
   function moveSnake() {
-    if (dx === 0 && dy === 0) return;
+    if (isPaused || !gameStarted) return;
     
     const head = {x: snake[0].x + dx, y: snake[0].y + dy};
     
-    // 检查撞墙
     if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
       gameOver();
       return;
     }
     
-    // 检查撞自己
     for (let i = 0; i < snake.length; i++) {
       if (head.x === snake[i].x && head.y === snake[i].y) {
         gameOver();
@@ -295,7 +327,6 @@
     
     snake.unshift(head);
     
-    // 检查吃食物
     if (head.x === food.x && head.y === food.y) {
       score += 10;
       scoreEl.textContent = score;
@@ -305,7 +336,6 @@
     }
     
     drawGame();
-    saveGameState();
   }
   
   function generateFood() {
@@ -323,24 +353,20 @@
     clearInterval(gameLoop);
     gameLoop = null;
     gameStarted = false;
-    clearSaveState();
+    isPaused = false;
     
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('snake_high', highScore);
       highScoreEl.textContent = highScore;
-      overlayTitle.textContent = '新纪录！🎉';
+      showOverlay(`新纪录！🎉 分数: ${score}`, '游戏结束');
     } else {
-      overlayTitle.textContent = '游戏结束';
+      showOverlay(`你的分数: ${score}`, '游戏结束');
     }
-    
-    finalScoreEl.textContent = score;
-    overlay.style.display = 'block';
   }
   
   function startGame() {
     clearInterval(gameLoop);
-    clearSaveState();
     snake = [{x: 10, y: 10}];
     dx = 1;
     dy = 0;
@@ -348,13 +374,25 @@
     scoreEl.textContent = score;
     generateFood();
     gameStarted = true;
-    overlay.style.display = 'none';
+    isPaused = false;
+    hideOverlay();
     drawGame();
-    gameLoop = setInterval(moveSnake, 250);
+    gameLoop = setInterval(moveSnake, speedMap[currentDifficulty]);
+  }
+  
+  function togglePause() {
+    if (!gameStarted) return;
+    isPaused = !isPaused;
+    document.querySelector('.pause-btn').textContent = isPaused ? '继续' : '暂停';
+    if (isPaused) {
+      showOverlay('游戏已暂停', '暂停');
+    } else {
+      hideOverlay();
+    }
   }
   
   function setDirection(dir) {
-    if (!gameStarted) return;
+    if (!gameStarted || isPaused) return;
     switch(dir) {
       case 'up':    if (dy === 0) { dx = 0; dy = -1; } break;
       case 'down':  if (dy === 0) { dx = 0; dy = 1; } break;
@@ -363,9 +401,15 @@
     }
   }
   
-  // 键盘控制
   document.addEventListener('keydown', (e) => {
-    if (!gameStarted && (e.key === ' ' || e.key === 'Enter')) {
+    if (e.key === ' ' || e.key === 'Escape') {
+      if (gameStarted) {
+        togglePause();
+        e.preventDefault();
+        return;
+      }
+    }
+    if (!gameStarted && (e.key === 'Enter')) {
       startGame();
       return;
     }
@@ -378,7 +422,6 @@
     e.preventDefault();
   });
   
-  // 触摸控制（滑动）
   let touchStartX = 0, touchStartY = 0;
   canvas.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
@@ -401,50 +444,7 @@
     e.preventDefault();
   }, {passive: false});
   
-  function showRestoreMessage() {
-    const existing = document.getElementById('restoreToast');
-    if (existing) {
-      existing.style.display = 'block';
-      existing.style.opacity = '1';
-      clearTimeout(existing._timeout);
-      existing._timeout = setTimeout(() => { existing.style.opacity = '0'; }, 2000);
-    }
-  }
-  
-  function restoreGame() {
-    const saved = localStorage.getItem(SAVE_KEY);
-    if (saved) {
-      try {
-        const state = JSON.parse(saved);
-        snake = state.snake;
-        food = state.food;
-        dx = state.dx;
-        dy = state.dy;
-        score = state.score;
-        scoreEl.textContent = score;
-        gameStarted = true;
-        overlay.style.display = 'none';
-        drawGame();
-        gameLoop = setInterval(moveSnake, 250);
-        showRestoreMessage();
-      } catch(e) {
-        clearSaveState();
-        startGame();
-      }
-    } else {
-      startGame();
-    }
-  }
-  
-  // 页面关闭前保存状态
-  window.addEventListener('beforeunload', () => {
-    if (gameStarted && snake.length > 0) {
-      saveGameState();
-    }
-  });
-  
-  // 初始：尝试恢复存档
-  restoreGame();
+  drawGame();
 </script>
 </body>
 </html>
