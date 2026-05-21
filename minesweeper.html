@@ -242,6 +242,7 @@ function render(hitR, hitC) {
     } else if(flagged[r][c]) {
       cell.className = 'cell flagged';
       cell.textContent = '🚩';
+      cell.addEventListener('contextmenu', e => { e.preventDefault(); handleFlag(r, c); });
     } else {
       cell.className = 'cell hidden';
       cell.addEventListener('click', () => handleClick(r, c));
